@@ -1,0 +1,7 @@
+Debug/
+.vscode/
+.settings/
+targetConfigs/
+.ccsproject
+.cproject
+.project
