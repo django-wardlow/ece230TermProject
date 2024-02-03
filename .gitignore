@@ -1,6 +1,7 @@
 Debug/
 .vscode/
 .settings/
+.launches/
 targetConfigs/
 .ccsproject
 .cproject
