@@ -2,16 +2,28 @@
  * rfid.h
  *
  *  Created on: Feb 1, 2024
- *      Author: user1
+ *      Author: Django Wardlow
  */
 
 #ifndef RFID_H_
 #define RFID_H_
 
+
+    /* SPI Master Configuration Parameter */
+    const eUSCI_SPI_MasterConfig spiMasterConfig =
+        {
+            EUSCI_SPI_CLOCKSOURCE_SMCLK,                             // SMCLK Clock Source
+            48000000,                                                // SMCLK = DCO = 48MHZ
+            4000000,                                                 // SPICLK = 4mhz
+            EUSCI_SPI_MSB_FIRST,                                     // MSB First
+            EUSCI_B_SPI_PHASE_DATA_CHANGED_ONFIRST_CAPTURED_ON_NEXT, // Phase
+            EUSCI_SPI_CLOCKPOLARITY_INACTIVITY_HIGH,                 // High polarity
+            EUSCI_SPI_3PIN                                           // 3Wire SPI Mode
+    };
+
     // Size of the MFRC522 FIFO
     uint8_t FIFO_SIZE = 64; // The FIFO is 64 uint8_ts.
-    // Default value for unused pin
-    uint8_t UNUSED_PIN = UINT8_MAX;
+
 
     // MFRC522 registers. Described in chapter 9 of the datasheet.
     // When using SPI all addresses are shifted one bit left in the "SPI address uint8_t" (section 8.1.2.3)
@@ -206,6 +218,8 @@
     // Member variables
     Uid uid;
 
+    void init_rfid(void);
+    void rfid_set_card_read_function(void (*read)(uint8_t));
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Basic interface functions for communicating with the MFRC522
 	/////////////////////////////////////////////////////////////////////////////////////

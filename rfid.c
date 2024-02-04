@@ -1,69 +1,13 @@
 /*
- * -------------------------------------------
- *    MSP432 DriverLib - v3_21_00_05
- * -------------------------------------------
+ * Driver for the RC522 rfid 
+ * Based on the MSPwere driverlib MSP432 SPI - 3-wire Master Incremented Data example by Timothy Logan
+ * and Based on the MFRC522 arduino library by Miki Balboa 
  *
- * --COPYRIGHT--,BSD,BSD
- * Copyright (c) 2016, Texas Instruments Incorporated
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * --/COPYRIGHT--*/
-/******************************************************************************
- * MSP432 SPI - 3-wire Master Incremented Data
- *
- * This example shows how SPI master talks to SPI slave using 3-wire mode.
- * Incrementing data is sent by the master starting at 0x01. Received data is
- * expected to be same as the previous transmission.  eUSCI RX ISR is used to
- * handle communication with the CPU, normally in LPM0. Because all execution
- * after LPM0 is in ISRs, initialization waits for DCO to stabilize against
- * ACLK.
- *
- * Note that in this example, EUSCIB0 is used for the SPI port. If the user
- * wants to use EUSCIA for SPI operation, they are able to with the same APIs
- * with the EUSCI_AX parameters.
- *
- * ACLK = ~32.768kHz, MCLK = SMCLK = DCO 3MHz
- *
- * Use with SPI Slave Data Echo code example.
- *
- *                MSP432P401
- *              -----------------
- *             |                 |
- *             |                 |
- *             |                 |
- *             |             P1.6|-> Data Out (UCB0SIMO)
- *             |                 |
- *             |             P1.7|<- Data In (UCB0SOMI)
- *             |                 |
- *             |             P1.5|-> Serial Clock Out (UCB0CLK)
- * Author: Timothy Logan
- *******************************************************************************/
+ * Author: Django Wardlow
+ * Date: 2/3/24
+ */
+
 /* DriverLib Includes */
 #include "driverlib.h"
 
@@ -73,43 +17,28 @@
 
 #include <spi.h>
 #include "rfid.h"
-#include "gpio.h"
-#include "csHFXT.h"
 
-/* Statics */
-static volatile uint8_t RXData = 0;
-static uint8_t TXData = 0;
+void (*read_fn)(uint8_t);
 
-// Uid u;
-
-/* SPI Master Configuration Parameter */
-const eUSCI_SPI_MasterConfig spiMasterConfig =
-    {
-        EUSCI_SPI_CLOCKSOURCE_SMCLK,                             // SMCLK Clock Source
-        48000000,                                                // SMCLK = DCO = 48MHZ
-        4000000,                                                 // SPICLK = 4mhz
-        EUSCI_SPI_MSB_FIRST,                                     // MSB First
-        EUSCI_B_SPI_PHASE_DATA_CHANGED_ONFIRST_CAPTURED_ON_NEXT, // Phase
-        EUSCI_SPI_CLOCKPOLARITY_INACTIVITY_HIGH,                 // High polarity
-        EUSCI_SPI_3PIN                                           // 3Wire SPI Mode
-};
-
-int main(void)
+void init_rfid(void)
 {
     volatile uint32_t ii;
-
-    /* Halting WDT  */
-    WDT_A_holdTimer();
-
-    configHFXT();
 
     /* Selecting P1.5 P1.6 and P1.7 in SPI mode */
     GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1,
                                                GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7, GPIO_PRIMARY_MODULE_FUNCTION);
 
+    //configure chip select pin
     GPIO_setAsOutputPin(GPIO_PORT_P3, GPIO_PIN2);
-
     GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2);
+
+    //configure intrupt in pin
+    GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P3, GPIO_PIN0);
+    GPIO_interruptEdgeSelect(GPIO_PORT_P3, GPIO_PIN0, GPIO_HIGH_TO_LOW_TRANSITION);
+    GPIO_clearInterruptFlag(GPIO_PORT_P3, GPIO_PIN0);
+    GPIO_enableInterrupt(GPIO_PORT_P3, GPIO_PIN0);
+    Interrupt_enableInterrupt(INT_PORT3);
+    Interrupt_enableMaster();
 
     /* Configuring SPI in 3wire master mode */
     SPI_initMaster(EUSCI_B0_BASE, &spiMasterConfig);
@@ -122,43 +51,90 @@ int main(void)
     // Interrupt_enableInterrupt(INT_EUSCIB0);
     // Interrupt_enableSleepOnIsrExit();
 
+    /*disable spi intrupt*/
     Interrupt_disableInterrupt(INT_EUSCIB0);
 
-    // TXData = 0x01;
-
-    // /* Polling to see if the TX buffer is ready */
-    // while (!(SPI_getInterruptStatus(EUSCI_B0_BASE, EUSCI_SPI_TRANSMIT_INTERRUPT)));
-
-    // /* Transmitting data to slave */
-    // SPI_transmitData(EUSCI_B0_BASE, TXData);
 
     PCD_Init();
 
+    /*
+     * Allow the ... irq to be propagated to the IRQ pin
+     * For test purposes propagate the IdleIrq and loAlert
+     */
+    uint8_t regVal = 0xA0; //rx irq
+    PCD_WriteRegister(ComIEnReg, regVal);
+
+    //activate reciver
+    PCD_WriteRegister(FIFODataReg, PICC_CMD_REQA);
+    PCD_WriteRegister(CommandReg, PCD_Transceive);
+    PCD_WriteRegister(BitFramingReg, 0x87);
+
+    clearInt();
+
     printf("init sucess");
 
-    // PCM_gotoLPM0();
-    while (1)
-    {
 
-        while (1)
-        {
+}
 
-            // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle. And if present, select one.
-            if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial())
-            {
-                DelayMs(50);
-                continue;
-            }
+/*
+ * The function sending to the MFRC522 the needed commands to activate the reception
+ */
+void activateRec() {
+  PCD_WriteRegister(FIFODataReg, PICC_CMD_REQA);
+  PCD_WriteRegister(CommandReg, PCD_Transceive);
+  PCD_WriteRegister(BitFramingReg, 0x87);
+}
 
-            // Now a card is selected. The UID and SAK is in mfrc522.uid.
+/*
+ * The function to clear the pending interrupt bits after interrupt serving routine
+ */
+void clearInt() {
+  PCD_WriteRegister(ComIrqReg, 0x7F);
+}
 
-            uint32_t s = get_uid_sum(&uid);
+void rfid_set_card_read_function(void (*read)(uint8_t)){
+    read_fn = read;
+}
 
-            printf("uid sum = %d \n", s);
 
-            PICC_HaltA();
-        }
+/* GPIO ISR */
+void PORT3_IRQHandler(void)
+{
+    uint32_t status;
+    status = MAP_GPIO_getEnabledInterruptStatus(GPIO_PORT_P3);
+    GPIO_clearInterruptFlag(GPIO_PORT_P3, status);
+    //GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
+    printf("rfid pin intrupt");
+
+    read_fn(read_uid_sum());
+
+    clearInt();
+
+}
+
+
+uint32_t read_uid_sum(){
+    int trys = 6000;
+    while (trys > 0){
+        trys--;
+        // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle. And if present, select one.
+       if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial())
+       {
+           DelayMs(50);
+           continue;
+       }
+
+       // Now a card is selected. The UID and SAK is in mfrc522.uid.
+
+       uint32_t s = get_uid_sum(&uid);
+
+       //printf("uid sum = %d \n", s);
+
+       PICC_HaltA();
+
+       return s;
     }
+    return 0;
 }
 
 uint32_t get_uid_sum(Uid *uid)
@@ -454,101 +430,6 @@ void PCD_SetAntennaGain(uint8_t mask)
         PCD_SetRegisterBitMask(RFCfgReg, mask & (0x07 << 4)); // only set RxGain[2:0] bits
     }
 } // End PCD_SetAntennaGain()
-
-// /**
-//  * Performs a self-test of the MFRC522
-//  * See 16.1.1 in http://www.nxp.com/documents/data_sheet/MFRC522.pdf
-//  *
-//  * @return Whether or not the test passed. Or false if no firmware reference is available.
-//  */
-// int PCD_PerformSelfTest()
-// {
-//     // This follows directly the steps outlined in 16.1.1
-//     // 1. Perform a soft reset.
-//     PCD_Reset();
-
-//     // 2. Clear the internal buffer by writing 25 uint8_ts of 00h
-//     uint8_t ZEROES[25] = {0x00};
-//     PCD_WriteRegister(FIFOLevelReg, 0x80);      // flush the FIFO buffer
-//     PCD_WriteRegister(FIFODataReg, 25, ZEROES); // write 25 uint8_ts of 00h to FIFO
-//     PCD_WriteRegister(CommandReg, PCD_Mem);     // transfer to internal buffer
-
-//     // 3. Enable self-test
-//     PCD_WriteRegister(AutoTestReg, 0x09);
-
-//     // 4. Write 00h to FIFO buffer
-//     PCD_WriteRegister(FIFODataReg, 0x00);
-
-//     // 5. Start self-test by issuing the CalcCRC command
-//     PCD_WriteRegister(CommandReg, PCD_CalcCRC);
-
-//     // 6. Wait for self-test to complete
-//     uint8_t n;
-//     for (uint8_t i = 0; i < 0xFF; i++)
-//     {
-//         // The datasheet does not specify exact completion condition except
-//         // that FIFO buffer should contain 64 uint8_ts.
-//         // While selftest is initiated by CalcCRC command
-//         // it behaves differently from normal CRC computation,
-//         // so one can't reliably use DivIrqReg to check for completion.
-//         // It is reported that some devices does not trigger CRCIRq flag
-//         // during selftest.
-//         n = PCD_ReadRegister(FIFOLevelReg);
-//         if (n >= 64)
-//         {
-//             break;
-//         }
-//     }
-//     PCD_WriteRegister(CommandReg, PCD_Idle); // Stop calculating CRC for new content in the FIFO.
-
-//     // 7. Read out resulting 64 uint8_ts from the FIFO buffer.
-//     uint8_t result[64];
-//     PCD_ReadRegister(FIFODataReg, 64, result, 0);
-
-//     // Auto self-test done
-//     // Reset AutoTestReg register to be 0 again. Required for normal operation.
-//     PCD_WriteRegister(AutoTestReg, 0x00);
-
-//     // Determine firmware version (see section 9.3.4.8 in spec)
-//     uint8_t version = PCD_ReadRegister(VersionReg);
-
-//     // Pick the appropriate reference values
-//     const uint8_t *reference;
-//     switch (version)
-//     {
-//     case 0x88: // Fudan Semiconductor FM17522 clone
-//         reference = FM17522_firmware_reference;
-//         break;
-//     case 0x90: // Version 0.0
-//         reference = MFRC522_firmware_referenceV0_0;
-//         break;
-//     case 0x91: // Version 1.0
-//         reference = MFRC522_firmware_referenceV1_0;
-//         break;
-//     case 0x92: // Version 2.0
-//         reference = MFRC522_firmware_referenceV2_0;
-//         break;
-//     default:          // Unknown version
-//         return false; // abort test
-//     }
-
-//     // Verify that the results match up to our expectations
-//     for (uint8_t i = 0; i < 64; i++)
-//     {
-//         if (result[i] != pgm_read_uint8_t(&(reference[i])))
-//         {
-//             return false;
-//         }
-//     }
-
-//     // 8. Perform a re-init, because PCD does not work after test.
-//     // Reset does not work as expected.
-//     // "Auto self-test done" does not work as expected.
-//     PCD_Init();
-
-//     // Test passed; all is good.
-//     return true;
-// } // End PCD_PerformSelfTest()
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Power control
@@ -1590,364 +1471,6 @@ PICC_Type PICC_GetType(uint8_t sak ///< The SAK uint8_t returned from PICC_Selec
     }
 } // End PICC_GetType()
 
-// /**
-//  * Returns a __FlashStringHelper pointer to the PICC type name.
-//  *
-//  * @return const __FlashStringHelper *
-//  */
-// const __FlashStringHelper *PICC_GetTypeName(PICC_Type piccType	///< One of the PICC_Type enums.
-// 													) {
-// 	switch (piccType) {
-// 		case PICC_TYPE_ISO_14443_4:		return F("PICC compliant with ISO/IEC 14443-4");
-// 		case PICC_TYPE_ISO_18092:		return F("PICC compliant with ISO/IEC 18092 (NFC)");
-// 		case PICC_TYPE_MIFARE_MINI:		return F("MIFARE Mini, 320 uint8_ts");
-// 		case PICC_TYPE_MIFARE_1K:		return F("MIFARE 1KB");
-// 		case PICC_TYPE_MIFARE_4K:		return F("MIFARE 4KB");
-// 		case PICC_TYPE_MIFARE_UL:		return F("MIFARE Ultralight or Ultralight C");
-// 		case PICC_TYPE_MIFARE_PLUS:		return F("MIFARE Plus");
-// 		case PICC_TYPE_MIFARE_DESFIRE:	return F("MIFARE DESFire");
-// 		case PICC_TYPE_TNP3XXX:			return F("MIFARE TNP3XXX");
-// 		case PICC_TYPE_NOT_COMPLETE:	return F("SAK indicates UID is not complete.");
-// 		case PICC_TYPE_UNKNOWN:
-// 		default:						return F("Unknown type");
-// 	}
-// } // End PICC_GetTypeName()
-
-// /**
-//  * Dumps debug info about the connected PCD to Serial.
-//  * Shows all known firmware versions
-//  */
-// void PCD_DumpVersionToSerial() {
-// 	// Get the MFRC522 firmware version
-// 	uint8_t v = PCD_ReadRegister(VersionReg);
-// 	printf(F("Firmware Version: 0x"));
-// 	printf(v, HEX);
-// 	// Lookup which version
-// 	switch(v) {
-// 		case 0x88: printf(F(" = (clone)"));  break;
-// 		case 0x90: printf(F(" = v0.0"));     break;
-// 		case 0x91: printf(F(" = v1.0"));     break;
-// 		case 0x92: printf(F(" = v2.0"));     break;
-// 		case 0x12: printf(F(" = counterfeit chip"));     break;
-// 		default:   printf(F(" = (unknown)"));
-// 	}
-// 	// When 0x00 or 0xFF is returned, communication probably failed
-// 	if ((v == 0x00) || (v == 0xFF))
-// 		printf(F("WARNING: Communication failure, is the MFRC522 properly connected?"));
-// } // End PCD_DumpVersionToSerial()
-
-// /**
-//  * Dumps debug info about the selected PICC to Serial.
-//  * On success the PICC is halted after dumping the data.
-//  * For MIFARE Classic the factory default key of 0xFFFFFFFFFFFF is tried.
-//  */
-// void PICC_DumpToSerial(Uid *uid	///< Pointer to Uid struct returned from a successful PICC_Select().
-// 								) {
-// 	MIFARE_Key key;
-
-// 	// Dump UID, SAK and Type
-// 	PICC_DumpDetailsToSerial(uid);
-
-// 	// Dump contents
-// 	PICC_Type piccType = PICC_GetType(uid->sak);
-// 	switch (piccType) {
-// 		case PICC_TYPE_MIFARE_MINI:
-// 		case PICC_TYPE_MIFARE_1K:
-// 		case PICC_TYPE_MIFARE_4K:
-// 			// All keys are set to FFFFFFFFFFFFh at chip delivery from the factory.
-// 			for (uint8_t i = 0; i < 6; i++) {
-// 				key.keyuint8_t[i] = 0xFF;
-// 			}
-// 			PICC_DumpMifareClassicToSerial(uid, piccType, &key);
-// 			break;
-
-// 		case PICC_TYPE_MIFARE_UL:
-// 			PICC_DumpMifareUltralightToSerial();
-// 			break;
-
-// 		case PICC_TYPE_ISO_14443_4:
-// 		case PICC_TYPE_MIFARE_DESFIRE:
-// 		case PICC_TYPE_ISO_18092:
-// 		case PICC_TYPE_MIFARE_PLUS:
-// 		case PICC_TYPE_TNP3XXX:
-// 			printf(F("Dumping memory contents not implemented for that PICC type."));
-// 			break;
-
-// 		case PICC_TYPE_UNKNOWN:
-// 		case PICC_TYPE_NOT_COMPLETE:
-// 		default:
-// 			break; // No memory dump here
-// 	}
-
-// 	printf();
-// 	PICC_HaltA(); // Already done if it was a MIFARE Classic PICC.
-// } // End PICC_DumpToSerial()
-
-// /**
-//  * Dumps card info (UID,SAK,Type) about the selected PICC to Serial.
-//  */
-// void PICC_DumpDetailsToSerial(Uid *uid	///< Pointer to Uid struct returned from a successful PICC_Select().
-// 									) {
-// 	// UID
-// 	printf(F("Card UID:"));
-// 	for (uint8_t i = 0; i < uid->size; i++) {
-// 		if(uid->uiduint8_t[i] < 0x10)
-// 			printf(F(" 0"));
-// 		else
-// 			printf(F(" "));
-// 		printf(uid->uiduint8_t[i], HEX);
-// 	}
-// 	printf();
-
-// 	// SAK
-// 	printf(F("Card SAK: "));
-// 	if(uid->sak < 0x10)
-// 		printf(F("0"));
-// 	printf(uid->sak, HEX);
-
-// 	// (suggested) PICC type
-// 	PICC_Type piccType = PICC_GetType(uid->sak);
-// 	printf(F("PICC type: "));
-// 	printf(PICC_GetTypeName(piccType));
-// } // End PICC_DumpDetailsToSerial()
-
-// /**
-//  * Dumps memory contents of a MIFARE Classic PICC.
-//  * On success the PICC is halted after dumping the data.
-//  */
-// void PICC_DumpMifareClassicToSerial(Uid *uid,           ///< Pointer to Uid struct returned from a successful PICC_Select().
-//                                     PICC_Type piccType, ///< One of the PICC_Type enums.
-//                                     MIFARE_Key *key     ///< Key A used for all sectors.
-// )
-// {
-//     uint8_t no_of_sectors = 0;
-//     switch (piccType)
-//     {
-//     case PICC_TYPE_MIFARE_MINI:
-//         // Has 5 sectors * 4 blocks/sector * 16 uint8_ts/block = 320 uint8_ts.
-//         no_of_sectors = 5;
-//         break;
-
-//     case PICC_TYPE_MIFARE_1K:
-//         // Has 16 sectors * 4 blocks/sector * 16 uint8_ts/block = 1024 uint8_ts.
-//         no_of_sectors = 16;
-//         break;
-
-//     case PICC_TYPE_MIFARE_4K:
-//         // Has (32 sectors * 4 blocks/sector + 8 sectors * 16 blocks/sector) * 16 uint8_ts/block = 4096 uint8_ts.
-//         no_of_sectors = 40;
-//         break;
-
-//     default: // Should not happen. Ignore.
-//         break;
-//     }
-
-//     // Dump sectors, highest address first.
-//     if (no_of_sectors)
-//     {
-//         printf(F("Sector Block   0  1  2  3   4  5  6  7   8  9 10 11  12 13 14 15  AccessBits"));
-//         int8_t i = 0;
-//         for (i = no_of_sectors - 1; i >= 0; i--)
-//         {
-//             PICC_DumpMifareClassicSectorToSerial(uid, key, i);
-//         }
-//     }
-//     PICC_HaltA(); // Halt the PICC before stopping the encrypted session.
-//     PCD_StopCrypto1();
-// } // End PICC_DumpMifareClassicToSerial()
-
-// /**
-//  * Dumps memory contents of a sector of a MIFARE Classic PICC.
-//  * Uses PCD_Authenticate(), MIFARE_Read() and PCD_StopCrypto1.
-//  * Always uses PICC_CMD_MF_AUTH_KEY_A because only Key A can always read the sector trailer access bits.
-//  */
-// void PICC_DumpMifareClassicSectorToSerial(Uid *uid,			///< Pointer to Uid struct returned from a successful PICC_Select().
-// 													MIFARE_Key *key,	///< Key A for the sector.
-// 													uint8_t sector			///< The sector to dump, 0..39.
-// 													) {
-// 	StatusCode status;
-// 	uint8_t firstBlock;		// Address of lowest address to dump actually last block dumped)
-// 	uint8_t no_of_blocks;		// Number of blocks in sector
-// 	int isSectorTrailer;	// Set to true while handling the "last" (ie highest address) in the sector.
-
-// 	// The access bits are stored in a peculiar fashion.
-// 	// There are four groups:
-// 	//		g[3]	Access bits for the sector trailer, block 3 (for sectors 0-31) or block 15 (for sectors 32-39)
-// 	//		g[2]	Access bits for block 2 (for sectors 0-31) or blocks 10-14 (for sectors 32-39)
-// 	//		g[1]	Access bits for block 1 (for sectors 0-31) or blocks 5-9 (for sectors 32-39)
-// 	//		g[0]	Access bits for block 0 (for sectors 0-31) or blocks 0-4 (for sectors 32-39)
-// 	// Each group has access bits [C1 C2 C3]. In this code C1 is MSB and C3 is LSB.
-// 	// The four CX bits are stored together in a nible cx and an inverted nible cx_.
-// 	uint8_t c1, c2, c3;		// Nibbles
-// 	uint8_t c1_, c2_, c3_;		// Inverted nibbles
-// 	int invertedError;		// True if one of the inverted nibbles did not match
-// 	uint8_t g[4];				// Access bits for each of the four groups.
-// 	uint8_t group;				// 0-3 - active group for access bits
-// 	int firstInGroup;		// True for the first block dumped in the group
-
-// 	// Determine position and size of sector.
-// 	if (sector < 32) { // Sectors 0..31 has 4 blocks each
-// 		no_of_blocks = 4;
-// 		firstBlock = sector * no_of_blocks;
-// 	}
-// 	else if (sector < 40) { // Sectors 32-39 has 16 blocks each
-// 		no_of_blocks = 16;
-// 		firstBlock = 128 + (sector - 32) * no_of_blocks;
-// 	}
-// 	else { // Illegal input, no MIFARE Classic PICC has more than 40 sectors.
-// 		return;
-// 	}
-
-// 	// Dump blocks, highest address first.
-// 	uint8_t uint8_tCount;
-// 	uint8_t buffer[18];
-// 	uint8_t blockAddr;
-// 	isSectorTrailer = true;
-// 	invertedError = false;	// Avoid "unused variable" warning.
-// 	for (int8_t blockOffset = no_of_blocks - 1; blockOffset >= 0; blockOffset--) {
-// 		blockAddr = firstBlock + blockOffset;
-// 		// Sector number - only on first line
-// 		if (isSectorTrailer) {
-// 			if(sector < 10)
-// 				printf(F("   ")); // Pad with spaces
-// 			else
-// 				printf(F("  ")); // Pad with spaces
-// 			printf(sector);
-// 			printf(F("   "));
-// 		}
-// 		else {
-// 			printf(F("       "));
-// 		}
-// 		// Block number
-// 		if(blockAddr < 10)
-// 			printf(F("   ")); // Pad with spaces
-// 		else {
-// 			if(blockAddr < 100)
-// 				printf(F("  ")); // Pad with spaces
-// 			else
-// 				printf(F(" ")); // Pad with spaces
-// 		}
-// 		printf(blockAddr);
-// 		printf(F("  "));
-// 		// Establish encrypted communications before reading the first block
-// 		if (isSectorTrailer) {
-// 			status = PCD_Authenticate(PICC_CMD_MF_AUTH_KEY_A, firstBlock, key, uid);
-// 			if (status != STATUS_OK) {
-// 				printf(F("PCD_Authenticate() failed: "));
-// 				printf(GetStatusCodeName(status));
-// 				return;
-// 			}
-// 		}
-// 		// Read block
-// 		uint8_tCount = sizeof(buffer);
-// 		status = MIFARE_Read(blockAddr, buffer, &uint8_tCount);
-// 		if (status != STATUS_OK) {
-// 			printf(F("MIFARE_Read() failed: "));
-// 			printf(GetStatusCodeName(status));
-// 			continue;
-// 		}
-// 		// Dump data
-// 		for (uint8_t index = 0; index < 16; index++) {
-// 			if(buffer[index] < 0x10)
-// 				printf(F(" 0"));
-// 			else
-// 				printf(F(" "));
-// 			printf(buffer[index], HEX);
-// 			if ((index % 4) == 3) {
-// 				printf(F(" "));
-// 			}
-// 		}
-// 		// Parse sector trailer data
-// 		if (isSectorTrailer) {
-// 			c1  = buffer[7] >> 4;
-// 			c2  = buffer[8] & 0xF;
-// 			c3  = buffer[8] >> 4;
-// 			c1_ = buffer[6] & 0xF;
-// 			c2_ = buffer[6] >> 4;
-// 			c3_ = buffer[7] & 0xF;
-// 			invertedError = (c1 != (~c1_ & 0xF)) || (c2 != (~c2_ & 0xF)) || (c3 != (~c3_ & 0xF));
-// 			g[0] = ((c1 & 1) << 2) | ((c2 & 1) << 1) | ((c3 & 1) << 0);
-// 			g[1] = ((c1 & 2) << 1) | ((c2 & 2) << 0) | ((c3 & 2) >> 1);
-// 			g[2] = ((c1 & 4) << 0) | ((c2 & 4) >> 1) | ((c3 & 4) >> 2);
-// 			g[3] = ((c1 & 8) >> 1) | ((c2 & 8) >> 2) | ((c3 & 8) >> 3);
-// 			isSectorTrailer = false;
-// 		}
-
-// 		// Which access group is this block in?
-// 		if (no_of_blocks == 4) {
-// 			group = blockOffset;
-// 			firstInGroup = true;
-// 		}
-// 		else {
-// 			group = blockOffset / 5;
-// 			firstInGroup = (group == 3) || (group != (blockOffset + 1) / 5);
-// 		}
-
-// 		if (firstInGroup) {
-// 			// Print access bits
-// 			printf(F(" [ "));
-// 			printf((g[group] >> 2) & 1, DEC); printf(F(" "));
-// 			printf((g[group] >> 1) & 1, DEC); printf(F(" "));
-// 			printf((g[group] >> 0) & 1, DEC);
-// 			printf(F(" ] "));
-// 			if (invertedError) {
-// 				printf(F(" Inverted access bits did not match! "));
-// 			}
-// 		}
-
-// 		if (group != 3 && (g[group] == 1 || g[group] == 6)) { // Not a sector trailer, a value block
-// 			int32_t value = (int32_t(buffer[3])<<24) | (int32_t(buffer[2])<<16) | (int32_t(buffer[1])<<8) | int32_t(buffer[0]);
-// 			printf(F(" Value=0x")); printf(value, HEX);
-// 			printf(F(" Adr=0x")); printf(buffer[12], HEX);
-// 		}
-// 		printf();
-// 	}
-
-// 	return;
-// } // End PICC_DumpMifareClassicSectorToSerial()
-
-// /**
-//  * Dumps memory contents of a MIFARE Ultralight PICC.
-//  */
-// void PICC_DumpMifareUltralightToSerial() {
-// 	StatusCode status;
-// 	uint8_t uint8_tCount;
-// 	uint8_t buffer[18];
-// 	uint8_t i;
-
-// 	printf(F("Page  0  1  2  3"));
-// 	// Try the mpages of the original Ultralight. Ultralight C has more pages.
-// 	for (uint8_t page = 0; page < 16; page +=4) { // Read returns data for 4 pages at a time.
-// 		// Read pages
-// 		uint8_tCount = sizeof(buffer);
-// 		status = MIFARE_Read(page, buffer, &uint8_tCount);
-// 		if (status != STATUS_OK) {
-// 			printf(F("MIFARE_Read() failed: "));
-// 			printf(GetStatusCodeName(status));
-// 			break;
-// 		}
-// 		// Dump data
-// 		for (uint8_t offset = 0; offset < 4; offset++) {
-// 			i = page + offset;
-// 			if(i < 10)
-// 				printf(F("  ")); // Pad with spaces
-// 			else
-// 				printf(F(" ")); // Pad with spaces
-// 			printf(i);
-// 			printf(F("  "));
-// 			for (uint8_t index = 0; index < 4; index++) {
-// 				i = 4 * offset + index;
-// 				if(buffer[i] < 0x10)
-// 					printf(F(" 0"));
-// 				else
-// 					printf(F(" "));
-// 				printf(buffer[i], HEX);
-// 			}
-// 			printf();
-// 		}
-// 	}
-// } // End PICC_DumpMifareUltralightToSerial()
-
 /**
  * Calculates the bit pattern needed for the specified access bits. In the [C1 C2 C3] tuples C1 is MSB (=4) and C3 is LSB (=1).
  */
@@ -1966,227 +1489,6 @@ void MIFARE_SetAccessBits(uint8_t *accessBitBuffer, ///< Pointer to uint8_t 6, 7
     accessBitBuffer[1] = c1 << 4 | (~c3 & 0xF);
     accessBitBuffer[2] = c3 << 4 | c2;
 } // End MIFARE_SetAccessBits()
-
-// /**
-//  * Performs the "magic sequence" needed to get Chinese UID changeable
-//  * Mifare cards to allow writing to sector 0, where the card UID is stored.
-//  *
-//  * Note that you do not need to have selected the card through REQA or WUPA,
-//  * this sequence works immediately when the card is in the reader vicinity.
-//  * This means you can use this method even on "bricked" cards that your reader does
-//  * not recognise anymore (see MIFARE_UnbrickUidSector).
-//  *
-//  * Of course with non-bricked devices, you're free to select them before calling this function.
-//  */
-// int MIFARE_OpenUidBackdoor(int logErrors) {
-// 	// Magic sequence:
-// 	// > 50 00 57 CD (HALT + CRC)
-// 	// > 40 (7 bits only)
-// 	// < A (4 bits only)
-// 	// > 43
-// 	// < A (4 bits only)
-// 	// Then you can write to sector 0 without authenticating
-
-// 	PICC_HaltA(); // 50 00 57 CD
-
-// 	uint8_t cmd = 0x40;
-// 	uint8_t validBits = 7; /* Our command is only 7 bits. After receiving card response,
-// 						  this will contain amount of valid response bits. */
-// 	uint8_t response[32]; // Card's response is written here
-// 	uint8_t received = sizeof(response);
-// 	StatusCode status = PCD_TransceiveData(&cmd, (uint8_t)1, response, &received, &validBits, (uint8_t)0, false); // 40
-// 	if(status != STATUS_OK) {
-// 		if(logErrors) {
-// 			printf(F("Card did not respond to 0x40 after HALT command. Are you sure it is a UID changeable one?"));
-// 			printf(F("Error name: "));
-// 			printf(GetStatusCodeName(status));
-// 		}
-// 		return false;
-// 	}
-// 	if (received != 1 || response[0] != 0x0A) {
-// 		if (logErrors) {
-// 			printf(F("Got bad response on backdoor 0x40 command: "));
-// 			printf(response[0], HEX);
-// 			printf(F(" ("));
-// 			printf(validBits);
-// 			printf(F(" valid bits)\r\n"));
-// 		}
-// 		return false;
-// 	}
-
-// 	cmd = 0x43;
-// 	validBits = 8;
-// 	status = PCD_TransceiveData(&cmd, (uint8_t)1, response, &received, &validBits, (uint8_t)0, false); // 43
-// 	if(status != STATUS_OK) {
-// 		if(logErrors) {
-// 			printf(F("Error in communication at command 0x43, after successfully executing 0x40"));
-// 			printf(F("Error name: "));
-// 			printf(GetStatusCodeName(status));
-// 		}
-// 		return false;
-// 	}
-// 	if (received != 1 || response[0] != 0x0A) {
-// 		if (logErrors) {
-// 			printf(F("Got bad response on backdoor 0x43 command: "));
-// 			printf(response[0], HEX);
-// 			printf(F(" ("));
-// 			printf(validBits);
-// 			printf(F(" valid bits)\r\n"));
-// 		}
-// 		return false;
-// 	}
-
-// 	// You can now write to sector 0 without authenticating!
-// 	return true;
-// } // End MIFARE_OpenUidBackdoor()
-
-// /**
-//  * Reads entire block 0, including all manufacturer data, and overwrites
-//  * that block with the new UID, a freshly calculated BCC, and the original
-//  * manufacturer data.
-//  *
-//  * It assumes a default KEY A of 0xFFFFFFFFFFFF.
-//  * Make sure to have selected the card before this function is called.
-//  */
-// int MIFARE_SetUid(uint8_t *newUid, uint8_t uidSize, int logErrors)
-// {
-
-//     // UID + BCC uint8_t can not be larger than 16 together
-//     if (!newUid || !uidSize || uidSize > 15)
-//     {
-//         if (logErrors)
-//         {
-//             printf(F("New UID buffer empty, size 0, or size > 15 given"));
-//         }
-//         return false;
-//     }
-
-//     // Authenticate for reading
-//     MIFARE_Key key = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-//     StatusCode status = PCD_Authenticate(PICC_CMD_MF_AUTH_KEY_A, (uint8_t)1, &key, &uid);
-//     if (status != STATUS_OK)
-//     {
-
-//         if (status == STATUS_TIMEOUT)
-//         {
-//             // We get a read timeout if no card is selected yet, so let's select one
-
-//             // Wake the card up again if sleeping
-//             //			  uint8_t atqa_answer[2];
-//             //			  uint8_t atqa_size = 2;
-//             //			  PICC_WakeupA(atqa_answer, &atqa_size);
-
-//             if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial())
-//             {
-//                 printf(F("No card was previously selected, and none are available. Failed to set UID."));
-//                 return false;
-//             }
-
-//             status = PCD_Authenticate(PICC_CMD_MF_AUTH_KEY_A, (uint8_t)1, &key, &uid);
-//             if (status != STATUS_OK)
-//             {
-//                 // We tried, time to give up
-//                 if (logErrors)
-//                 {
-//                     printf(F("Failed to authenticate to card for reading, could not set UID: "));
-//                     printf(GetStatusCodeName(status));
-//                 }
-//                 return false;
-//             }
-//         }
-//         else
-//         {
-//             if (logErrors)
-//             {
-//                 printf(F("PCD_Authenticate() failed: "));
-//                 printf(GetStatusCodeName(status));
-//             }
-//             return false;
-//         }
-//     }
-
-//     // Read block 0
-//     uint8_t block0_buffer[18];
-//     uint8_t uint8_tCount = sizeof(block0_buffer);
-//     status = MIFARE_Read((uint8_t)0, block0_buffer, &uint8_tCount);
-//     if (status != STATUS_OK)
-//     {
-//         if (logErrors)
-//         {
-//             printf(F("MIFARE_Read() failed: "));
-//             printf(GetStatusCodeName(status));
-//             printf(F("Are you sure your KEY A for sector 0 is 0xFFFFFFFFFFFF?"));
-//         }
-//         return false;
-//     }
-
-//     // Write new UID to the data we just read, and calculate BCC uint8_t
-//     uint8_t bcc = 0;
-//     uint8_t i = 0;
-//     for (i = 0; i < uidSize; i++)
-//     {
-//         block0_buffer[i] = newUid[i];
-//         bcc ^= newUid[i];
-//     }
-
-//     // Write BCC uint8_t to buffer
-//     block0_buffer[uidSize] = bcc;
-
-//     // Stop encrypted traffic so we can send raw uint8_ts
-//     PCD_StopCrypto1();
-
-//     // Activate UID backdoor
-//     if (!MIFARE_OpenUidBackdoor(logErrors))
-//     {
-//         if (logErrors)
-//         {
-//             printf(F("Activating the UID backdoor failed."));
-//         }
-//         return false;
-//     }
-
-//     // Write modified block 0 back to card
-//     status = MIFARE_Write((uint8_t)0, block0_buffer, (uint8_t)16);
-//     if (status != STATUS_OK)
-//     {
-//         if (logErrors)
-//         {
-//             printf(F("MIFARE_Write() failed: "));
-//             printf(GetStatusCodeName(status));
-//         }
-//         return false;
-//     }
-
-//     // Wake the card up again
-//     uint8_t atqa_answer[2];
-//     uint8_t atqa_size = 2;
-//     PICC_WakeupA(atqa_answer, &atqa_size);
-
-//     return true;
-// }
-
-///**
-// * Resets entire sector 0 to zeroes, so the card can be read again by readers.
-// */
-// int MIFARE_UnbrickUidSector(int logErrors)
-//{
-//    MIFARE_OpenUidBackdoor(logErrors);
-//
-//    uint8_t block0_buffer[] = {0x01, 0x02, 0x03, 0x04, 0x04, 0x08, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-//
-//    // Write modified block 0 back to card
-//    StatusCode status = MIFARE_Write((uint8_t)0, block0_buffer, (uint8_t)16);
-//    if (status != STATUS_OK)
-//    {
-//        if (logErrors)
-//        {
-//            printf(F("MIFARE_Write() failed: "));
-//            printf(GetStatusCodeName(status));
-//        }
-//        return false;
-//    }
-//    return true;
-//}
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Convenience functions - does not add extra functionality
@@ -2226,324 +1528,3 @@ int PICC_ReadCardSerial()
     StatusCode result = PICC_Select(&uid, 0);
     return (result == STATUS_OK);
 } // End
-
-// void PCD_Reset(void)
-// {
-//     PCD_WriteRegister(CommandReg, PCD_SoftReset); // Issue the SoftReset command.
-//     // The datasheet does not mention how long the SoftRest command takes to complete.
-//     // But the MFRC522 might have been in soft power-down mode (triggered by bit 4 of CommandReg)
-//     // Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74μs. Let us be generous: 50ms.
-//     uint8_t count = 0;
-//     do
-//     {
-//         // Wait for the PowerDown bit in CommandReg to be cleared (max 3x50ms)
-//         DelayMs(50);
-//     } while ((PCD_ReadRegister(CommandReg) & (1 << 4)) && (++count) < 3);
-// }
-
-// void PCD_AntennaOn(void)
-// {
-//     uint8_t value = PCD_ReadRegister(TxControlReg);
-//     if ((value & 0x03) != 0x03)
-//     {
-//         PCD_WriteRegister(TxControlReg, value | 0x03);
-//     }
-// }
-
-// void init_rfid(void)
-// {
-//     PCD_Reset();
-
-//     // Reset baud rates
-//     PCD_WriteRegister(TxModeReg, 0x00);
-//     PCD_WriteRegister(RxModeReg, 0x00);
-//     // Reset ModWidthReg
-//     PCD_WriteRegister(ModWidthReg, 0x26);
-
-//     // When communicating with a PICC we need a timeout if something goes wrong.
-//     // f_timer = 13.56 MHz / (2*TPreScaler+1) where TPreScaler = [TPrescaler_Hi:TPrescaler_Lo].
-//     // TPrescaler_Hi are the four low bits in TModeReg. TPrescaler_Lo is TPrescalerReg.
-//     PCD_WriteRegister(TModeReg, 0x80);      // TAuto=1; timer starts automatically at the end of the transmission in all communication modes at all speeds
-//     PCD_WriteRegister(TPrescalerReg, 0xA9); // TPreScaler = TModeReg[3..0]:TPrescalerReg, ie 0x0A9 = 169 => f_timer=40kHz, ie a timer period of 25μs.
-//     PCD_WriteRegister(TReloadRegH, 0x03);   // Reload timer with 0x3E8 = 1000, ie 25ms before timeout.
-//     PCD_WriteRegister(TReloadRegL, 0xE8);
-
-//     PCD_WriteRegister(TxASKReg, 0x40); // Default 0x00. Force a 100 % ASK modulation independent of the ModGsPReg register setting
-//     PCD_WriteRegister(ModeReg, 0x3D);  // Default 0x3F. Set the preset value for the CRC coprocessor for the CalcCRC command to 0x6363 (ISO 14443-3 part 6.2.4)
-//     PCD_AntennaOn();
-// }
-
-// /**
-//  * Simple wrapper around PICC_Select.
-//  * Returns true if a UID could be read.
-//  * Remember to call PICC_IsNewCardPresent(), PICC_RequestA() or PICC_WakeupA() first.
-//  * The read UID is available in the class variable uid.
-//  *
-//  * @return int
-//  */
-// int PICC_ReadCardSerial() {
-// 	StatusCode result = PICC_Select(&uid);
-// 	return (result == STATUS_OK);
-// } // End
-
-// /**
-//  * Returns true if a PICC responds to PICC_CMD_REQA.
-//  * Only "new" cards in state IDLE are invited. Sleeping cards in state HALT are ignored.
-//  *
-//  * @return int
-//  */
-// int PICC_IsNewCardPresent() {
-//     uint8_t bufferATQA[2];
-//     uint8_t bufferSize = sizeof(bufferATQA);
-
-//     // Reset baud rates
-//     PCD_WriteRegister(TxModeReg, 0x00);
-//     PCD_WriteRegister(RxModeReg, 0x00);
-//     // Reset ModWidthReg
-//     PCD_WriteRegister(ModWidthReg, 0x26);
-
-//     StatusCode result = PICC_RequestA(bufferATQA, &bufferSize);
-//     return (result == STATUS_OK || result == STATUS_COLLISION);
-// } // End PICC_IsNewCardPresent()
-
-// StatusCode PICC_Select(	Uid *uid,			///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
-// 											uint8_t validBits		///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
-// 										 ) {
-// 	int uidComplete;
-// 	int selectDone;
-// 	int useCascadeTag;
-// 	uint8_t cascadeLevel = 1;
-// 	StatusCode result;
-// 	uint8_t count;
-// 	uint8_t checkBit;
-// 	uint8_t index;
-// 	uint8_t uidIndex;					// The first index in uid->uiduint8_t[] that is used in the current Cascade Level.
-// 	int8_t currentLevelKnownBits;		// The number of known UID bits in the current Cascade Level.
-// 	uint8_t buffer[9];					// The SELECT/ANTICOLLISION commands uses a 7 uint8_t standard frame + 2 uint8_ts CRC_A
-// 	uint8_t bufferUsed;				// The number of uint8_ts used in the buffer, ie the number of uint8_ts to transfer to the FIFO.
-// 	uint8_t rxAlign;					// Used in BitFramingReg. Defines the bit position for the first bit received.
-// 	uint8_t txLastBits;				// Used in BitFramingReg. The number of valid bits in the last transmitted uint8_t.
-// 	uint8_t *responseBuffer;
-// 	uint8_t responseLength;
-
-// 	// Description of buffer structure:
-// 	//		uint8_t 0: SEL 				Indicates the Cascade Level: PICC_CMD_SEL_CL1, PICC_CMD_SEL_CL2 or PICC_CMD_SEL_CL3
-// 	//		uint8_t 1: NVB					Number of Valid Bits (in complete command, not just the UID): High nibble: complete uint8_ts, Low nibble: Extra bits.
-// 	//		uint8_t 2: UID-data or CT		See explanation below. CT means Cascade Tag.
-// 	//		uint8_t 3: UID-data
-// 	//		uint8_t 4: UID-data
-// 	//		uint8_t 5: UID-data
-// 	//		uint8_t 6: BCC					Block Check Character - XOR of uint8_ts 2-5
-// 	//		uint8_t 7: CRC_A
-// 	//		uint8_t 8: CRC_A
-// 	// The BCC and CRC_A are only transmitted if we know all the UID bits of the current Cascade Level.
-// 	//
-// 	// Description of uint8_ts 2-5: (Section 6.5.4 of the ISO/IEC 14443-3 draft: UID contents and cascade levels)
-// 	//		UID size	Cascade level	uint8_t2	uint8_t3	uint8_t4	uint8_t5
-// 	//		========	=============	=====	=====	=====	=====
-// 	//		 4 uint8_ts		1			uid0	uid1	uid2	uid3
-// 	//		 7 uint8_ts		1			CT		uid0	uid1	uid2
-// 	//						2			uid3	uid4	uid5	uid6
-// 	//		10 uint8_ts		1			CT		uid0	uid1	uid2
-// 	//						2			CT		uid3	uid4	uid5
-// 	//						3			uid6	uid7	uid8	uid9
-
-// 	// Sanity checks
-// 	if (validBits > 80) {
-// 		return STATUS_INVALID;
-// 	}
-
-// 	// Prepare MFRC522
-// 	PCD_ClearRegisterBitMask(CollReg, 0x80);		// ValuesAfterColl=1 => Bits received after collision are cleared.
-
-// 	// Repeat Cascade Level loop until we have a complete UID.
-// 	uidComplete = false;
-// 	while (!uidComplete) {
-// 		// Set the Cascade Level in the SEL uint8_t, find out if we need to use the Cascade Tag in uint8_t 2.
-// 		switch (cascadeLevel) {
-// 			case 1:
-// 				buffer[0] = PICC_CMD_SEL_CL1;
-// 				uidIndex = 0;
-// 				useCascadeTag = validBits && uid->size > 4;	// When we know that the UID has more than 4 uint8_ts
-// 				break;
-
-// 			case 2:
-// 				buffer[0] = PICC_CMD_SEL_CL2;
-// 				uidIndex = 3;
-// 				useCascadeTag = validBits && uid->size > 7;	// When we know that the UID has more than 7 uint8_ts
-// 				break;
-
-// 			case 3:
-// 				buffer[0] = PICC_CMD_SEL_CL3;
-// 				uidIndex = 6;
-// 				useCascadeTag = false;						// Never used in CL3.
-// 				break;
-
-// 			default:
-// 				return STATUS_INTERNAL_ERROR;
-// 				break;
-// 		}
-
-// 		// How many UID bits are known in this Cascade Level?
-// 		currentLevelKnownBits = validBits - (8 * uidIndex);
-// 		if (currentLevelKnownBits < 0) {
-// 			currentLevelKnownBits = 0;
-// 		}
-// 		// Copy the known bits from uid->uiduint8_t[] to buffer[]
-// 		index = 2; // destination index in buffer[]
-// 		if (useCascadeTag) {
-// 			buffer[index++] = PICC_CMD_CT;
-// 		}
-// 		uint8_t uint8_tsToCopy = currentLevelKnownBits / 8 + (currentLevelKnownBits % 8 ? 1 : 0); // The number of uint8_ts needed to represent the known bits for this level.
-// 		if (uint8_tsToCopy) {
-// 			uint8_t maxuint8_ts = useCascadeTag ? 3 : 4; // Max 4 uint8_ts in each Cascade Level. Only 3 left if we use the Cascade Tag
-// 			if (uint8_tsToCopy > maxuint8_ts) {
-// 				uint8_tsToCopy = maxuint8_ts;
-// 			}
-// 			for (count = 0; count < uint8_tsToCopy; count++) {
-// 				buffer[index++] = uid->uiduint8_t[uidIndex + count];
-// 			}
-// 		}
-// 		// Now that the data has been copied we need to include the 8 bits in CT in currentLevelKnownBits
-// 		if (useCascadeTag) {
-// 			currentLevelKnownBits += 8;
-// 		}
-
-// 		// Repeat anti collision loop until we can transmit all UID bits + BCC and receive a SAK - max 32 iterations.
-// 		selectDone = false;
-// 		while (!selectDone) {
-// 			// Find out how many bits and uint8_ts to send and receive.
-// 			if (currentLevelKnownBits >= 32) { // All UID bits in this Cascade Level are known. This is a SELECT.
-// 				//printf(F("SELECT: currentLevelKnownBits=")); printf(currentLevelKnownBits, DEC);
-// 				buffer[1] = 0x70; // NVB - Number of Valid Bits: Seven whole uint8_ts
-// 				// Calculate BCC - Block Check Character
-// 				buffer[6] = buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5];
-// 				// Calculate CRC_A
-// 				result = PCD_CalculateCRC(buffer, 7, &buffer[7]);
-// 				if (result != STATUS_OK) {
-// 					return result;
-// 				}
-// 				txLastBits		= 0; // 0 => All 8 bits are valid.
-// 				bufferUsed		= 9;
-// 				// Store response in the last 3 uint8_ts of buffer (BCC and CRC_A - not needed after tx)
-// 				responseBuffer	= &buffer[6];
-// 				responseLength	= 3;
-// 			}
-// 			else { // This is an ANTICOLLISION.
-// 				//printf(F("ANTICOLLISION: currentLevelKnownBits=")); printf(currentLevelKnownBits, DEC);
-// 				txLastBits		= currentLevelKnownBits % 8;
-// 				count			= currentLevelKnownBits / 8;	// Number of whole uint8_ts in the UID part.
-// 				index			= 2 + count;					// Number of whole uint8_ts: SEL + NVB + UIDs
-// 				buffer[1]		= (index << 4) + txLastBits;	// NVB - Number of Valid Bits
-// 				bufferUsed		= index + (txLastBits ? 1 : 0);
-// 				// Store response in the unused part of buffer
-// 				responseBuffer	= &buffer[index];
-// 				responseLength	= sizeof(buffer) - index;
-// 			}
-
-// 			// Set bit adjustments
-// 			rxAlign = txLastBits;											// Having a separate variable is overkill. But it makes the next line easier to read.
-// 			PCD_WriteRegister(BitFramingReg, (rxAlign << 4) + txLastBits);	// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
-
-// 			// Transmit the buffer and receive the response.
-// 			result = PCD_TransceiveData(buffer, bufferUsed, responseBuffer, &responseLength, &txLastBits, rxAlign);
-// 			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
-// 				uint8_t valueOfCollReg = PCD_ReadRegister(CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
-// 				if (valueOfCollReg & 0x20) { // CollPosNotValid
-// 					return STATUS_COLLISION; // Without a valid collision position we cannot continue
-// 				}
-// 				uint8_t collisionPos = valueOfCollReg & 0x1F; // Values 0-31, 0 means bit 32.
-// 				if (collisionPos == 0) {
-// 					collisionPos = 32;
-// 				}
-// 				if (collisionPos <= currentLevelKnownBits) { // No progress - should not happen
-// 					return STATUS_INTERNAL_ERROR;
-// 				}
-// 				// Choose the PICC with the bit set.
-// 				currentLevelKnownBits	= collisionPos;
-// 				count			= currentLevelKnownBits % 8; // The bit to modify
-// 				checkBit		= (currentLevelKnownBits - 1) % 8;
-// 				index			= 1 + (currentLevelKnownBits / 8) + (count ? 1 : 0); // First uint8_t is index 0.
-// 				buffer[index]	|= (1 << checkBit);
-// 			}
-// 			else if (result != STATUS_OK) {
-// 				return result;
-// 			}
-// 			else { // STATUS_OK
-// 				if (currentLevelKnownBits >= 32) { // This was a SELECT.
-// 					selectDone = true; // No more anticollision
-// 					// We continue below outside the while.
-// 				}
-// 				else { // This was an ANTICOLLISION.
-// 					// We now have all 32 bits of the UID in this Cascade Level
-// 					currentLevelKnownBits = 32;
-// 					// Run loop again to do the SELECT.
-// 				}
-// 			}
-// 		} // End of while (!selectDone)
-
-// 		// We do not check the CBB - it was constructed by us above.
-
-// 		// Copy the found UID uint8_ts from buffer[] to uid->uiduint8_t[]
-// 		index			= (buffer[2] == PICC_CMD_CT) ? 3 : 2; // source index in buffer[]
-// 		uint8_tsToCopy		= (buffer[2] == PICC_CMD_CT) ? 3 : 4;
-// 		for (count = 0; count < uint8_tsToCopy; count++) {
-// 			uid->uiduint8_t[uidIndex + count] = buffer[index++];
-// 		}
-
-// 		// Check response SAK (Select Acknowledge)
-// 		if (responseLength != 3 || txLastBits != 0) { // SAK must be exactly 24 bits (1 uint8_t + CRC_A).
-// 			return STATUS_ERROR;
-// 		}
-// 		// Verify CRC_A - do our own calculation and store the control in buffer[2..3] - those uint8_ts are not needed anymore.
-// 		result = PCD_CalculateCRC(responseBuffer, 1, &buffer[2]);
-// 		if (result != STATUS_OK) {
-// 			return result;
-// 		}
-// 		if ((buffer[2] != responseBuffer[1]) || (buffer[3] != responseBuffer[2])) {
-// 			return STATUS_CRC_WRONG;
-// 		}
-// 		if (responseBuffer[0] & 0x04) { // Cascade bit set - UID not complete yes
-// 			cascadeLevel++;
-// 		}
-// 		else {
-// 			uidComplete = true;
-// 			uid->sak = responseBuffer[0];
-// 		}
-// 	} // End of while (!uidComplete)
-
-// 	// Set correct uid->size
-// 	uid->size = 3 * cascadeLevel + 1;
-
-// 	return STATUS_OK;
-// } // End PICC_Select()
-
-//******************************************************************************
-//
-// This is the EUSCI_B0 interrupt vector service routine.
-//
-//******************************************************************************
-void EUSCIB0_IRQHandler(void)
-{
-    uint32_t status = SPI_getEnabledInterruptStatus(EUSCI_B0_BASE);
-    uint32_t jj;
-
-    SPI_clearInterruptFlag(EUSCI_B0_BASE, status);
-
-    if (status & EUSCI_SPI_RECEIVE_INTERRUPT)
-    {
-        /* USCI_B0 TX buffer ready? */
-        while (!(SPI_getInterruptStatus(EUSCI_B0_BASE, EUSCI_SPI_TRANSMIT_INTERRUPT)))
-            ;
-
-        RXData = SPI_receiveData(EUSCI_B0_BASE);
-
-        printf("%s", RXData);
-
-        // // /* Send the next data packet */
-        // // SPI_transmitData(EUSCI_B0_BASE, ++TXData);
-
-        // /* Delay between transmissions for slave to process information */
-        // for(jj=50;jj<50;jj++);
-    }
-}
