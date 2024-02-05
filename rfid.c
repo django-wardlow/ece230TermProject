@@ -18,7 +18,7 @@
 #include <spi.h>
 #include "rfid.h"
 
-void (*read_fn)(uint8_t);
+void (*read_fn)(uint32_t);
 
 void init_rfid(void)
 {
