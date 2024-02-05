@@ -8,6 +8,8 @@
 #ifndef RFID_H_
 #define RFID_H_
 
+#define TIMER_A_PERIOD 3200 //100 ms
+
 
     /* SPI Master Configuration Parameter */
     const eUSCI_SPI_MasterConfig spiMasterConfig =
@@ -19,6 +21,16 @@
             EUSCI_B_SPI_PHASE_DATA_CHANGED_ONFIRST_CAPTURED_ON_NEXT, // Phase
             EUSCI_SPI_CLOCKPOLARITY_INACTIVITY_HIGH,                 // High polarity
             EUSCI_SPI_3PIN                                           // 3Wire SPI Mode
+    };
+
+    const Timer_A_UpModeConfig upModeConfig =
+    {
+        TIMER_A_CLOCKSOURCE_ACLK,           // ACLK Clock Source
+        TIMER_A_CLOCKSOURCE_DIVIDER_1,      // ACLK/1 = 32.768khz
+        TIMER_A_PERIOD,                     //set overflow period
+        TIMER_A_TAIE_INTERRUPT_ENABLE,      // Enable Overflow ISR
+        TIMER_A_CAPTURECOMPARE_INTERRUPT_DISABLE, //disable ccr intrupt
+        TIMER_A_DO_CLEAR                    // Clear Counter
     };
 
     // Size of the MFRC522 FIFO

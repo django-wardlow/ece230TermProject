@@ -32,64 +32,53 @@ void init_rfid(void)
     GPIO_setAsOutputPin(GPIO_PORT_P3, GPIO_PIN2);
     GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2);
 
-    //configure intrupt in pin
-    GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P3, GPIO_PIN0);
-    GPIO_interruptEdgeSelect(GPIO_PORT_P3, GPIO_PIN0, GPIO_HIGH_TO_LOW_TRANSITION);
-    GPIO_clearInterruptFlag(GPIO_PORT_P3, GPIO_PIN0);
-    GPIO_enableInterrupt(GPIO_PORT_P3, GPIO_PIN0);
-    Interrupt_enableInterrupt(INT_PORT3);
-    Interrupt_enableMaster();
-
     /* Configuring SPI in 3wire master mode */
     SPI_initMaster(EUSCI_B0_BASE, &spiMasterConfig);
 
     /* Enable SPI module */
     SPI_enableModule(EUSCI_B0_BASE);
 
-    /* Enabling interrupts */
-    // SPI_enableInterrupt(EUSCI_B0_BASE, EUSCI_SPI_RECEIVE_INTERRUPT);
-    // Interrupt_enableInterrupt(INT_EUSCIB0);
-    // Interrupt_enableSleepOnIsrExit();
-
     /*disable spi intrupt*/
     Interrupt_disableInterrupt(INT_EUSCIB0);
 
-
+    //init rfid reader
     PCD_Init();
-
-    /*
-     * Allow the ... irq to be propagated to the IRQ pin
-     * For test purposes propagate the IdleIrq and loAlert
-     */
-    uint8_t regVal = 0xA0; //rx irq
-    PCD_WriteRegister(ComIEnReg, regVal);
 
     //activate reciver
     PCD_WriteRegister(FIFODataReg, PICC_CMD_REQA);
     PCD_WriteRegister(CommandReg, PCD_Transceive);
     PCD_WriteRegister(BitFramingReg, 0x87);
 
-    clearInt();
+    //configure timer A0
+
+    /* Configuring Continuous Mode */
+    Timer_A_configureUpMode(TIMER_A0_BASE, &upModeConfig);
+
+    /* Enabling interrupts and going to sleep */
+    Interrupt_enableSleepOnIsrExit();
+    Interrupt_enableInterrupt(INT_TA0_N);
+
+    /* Enabling MASTER interrupts */
+    Interrupt_enableMaster();
+
+    /* Starting the Timer_A0 in continuous mode */
+    Timer_A_startCounter(TIMER_A0_BASE, TIMER_A_UP_MODE);
 
     printf("init sucess");
 
-
 }
 
-/*
- * The function sending to the MFRC522 the needed commands to activate the reception
- */
-void activateRec() {
-  PCD_WriteRegister(FIFODataReg, PICC_CMD_REQA);
-  PCD_WriteRegister(CommandReg, PCD_Transceive);
-  PCD_WriteRegister(BitFramingReg, 0x87);
-}
 
-/*
- * The function to clear the pending interrupt bits after interrupt serving routine
- */
-void clearInt() {
-  PCD_WriteRegister(ComIrqReg, 0x7F);
+/* Timer32 ISR */
+void TA0_N_IRQHandler(void)
+{
+    Timer_A_clearInterruptFlag(TIMER_A0_BASE);
+
+    uint32_t uid = try_read_uid_sum();
+
+    if(uid != 0){
+        read_fn(uid);
+    }
 }
 
 void rfid_set_card_read_function(void (*read)(uint8_t)){
@@ -97,44 +86,24 @@ void rfid_set_card_read_function(void (*read)(uint8_t)){
 }
 
 
-/* GPIO ISR */
-void PORT3_IRQHandler(void)
-{
-    uint32_t status;
-    status = MAP_GPIO_getEnabledInterruptStatus(GPIO_PORT_P3);
-    GPIO_clearInterruptFlag(GPIO_PORT_P3, status);
-    //GPIO_toggleOutputOnPin(GPIO_PORT_P1, GPIO_PIN0);
-    printf("rfid pin intrupt");
+uint32_t try_read_uid_sum(){
 
-    read_fn(read_uid_sum());
+    // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle. And if present, select one.
+   if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial())
+   {
+       return 0;
+   }
 
-    clearInt();
+   // Now a card is selected. The UID and SAK is in mfrc522.uid.
 
-}
+   uint32_t s = get_uid_sum(&uid);
 
+   //printf("uid sum = %d \n", s);
 
-uint32_t read_uid_sum(){
-    int trys = 6000;
-    while (trys > 0){
-        trys--;
-        // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle. And if present, select one.
-       if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial())
-       {
-           DelayMs(50);
-           continue;
-       }
+   PICC_HaltA();
 
-       // Now a card is selected. The UID and SAK is in mfrc522.uid.
+   return s;
 
-       uint32_t s = get_uid_sum(&uid);
-
-       //printf("uid sum = %d \n", s);
-
-       PICC_HaltA();
-
-       return s;
-    }
-    return 0;
 }
 
 uint32_t get_uid_sum(Uid *uid)
