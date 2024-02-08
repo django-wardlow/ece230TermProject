@@ -17,7 +17,7 @@ void card_read(uint32_t uid){
 /**
  * main.c
  */
-void main(void)
+void main2(void)
 {
 	WDT_A_holdTimer();
 
