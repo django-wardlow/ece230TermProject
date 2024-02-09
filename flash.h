@@ -21,6 +21,9 @@ struct CardData {
     uint64_t accumulated_time;
 };
 
+#define DEFAULT_CARD {.uid = 0, .clocked_in = 0, clock_in_time = 0, accumulated_time = 0}
+
+
 #define CARD_DATA_BYTES 24
 // 4k(sector size)/24 gives a max of 166 cards in a flash sector at a time
 #define CARD_COUNT 166
@@ -30,6 +33,8 @@ struct CardData {
 void init_flash_memory(void);
 void wright_cards_to_mem(void);
 void read_cards_from_mem();
+struct CardData get_card_from_mem(int uid);
+void update_card_in_memmory(struct CardData new_card);
 
 
 

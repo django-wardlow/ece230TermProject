@@ -8,7 +8,7 @@
 #ifndef RFID_H_
 #define RFID_H_
 
-#define TIMER_A_PERIOD 3200 //100 ms
+#define TIMER_A_PERIOD 64000 //100 ms
 
 
     /* SPI Master Configuration Parameter */

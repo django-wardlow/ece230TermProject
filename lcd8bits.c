@@ -78,21 +78,21 @@ void DelayMs(unsigned int);
  */
 //define Ports and Pins to interface LCD
 #define LCD_CONTROL_PORT P5 //control signal port
-#define LCD_RS          0        //register select pin -LCD command/data
-#define LCD_EN          1         //E clock pin -LCD Enable, falling edge active
+#define LCD_RS          BIT0        //register select pin -LCD command/data
+#define LCD_EN          BIT1         //E clock pin -LCD Enable, falling edge active
 #define LCD_DATA        P4       //Data port -LCD Data pins (D0 - D7)
 
-#define Set_Command_Mode LCD_CONTROL_PORT->OUT = (LCD_CONTROL_PORT->OUT) & (~(0b1<<LCD_RS));
-#define Set_Data_Mode LCD_CONTROL_PORT->OUT = (LCD_CONTROL_PORT->OUT) | (0b1<<LCD_RS);
+#define Set_Command_Mode LCD_CONTROL_PORT->OUT = (LCD_CONTROL_PORT->OUT) & (~(LCD_RS));
+#define Set_Data_Mode LCD_CONTROL_PORT->OUT = (LCD_CONTROL_PORT->OUT) | (LCD_RS);
 
-#define Set_Enable_Low  LCD_CONTROL_PORT->OUT =  (LCD_CONTROL_PORT->OUT) & ~(0b1<<LCD_EN);
-#define Set_Enable_High  LCD_CONTROL_PORT->OUT =  (LCD_CONTROL_PORT->OUT) | (0b1<<LCD_EN);
+#define Set_Enable_Low  LCD_CONTROL_PORT->OUT =  (LCD_CONTROL_PORT->OUT) & ~(LCD_EN);
+#define Set_Enable_High  LCD_CONTROL_PORT->OUT =  (LCD_CONTROL_PORT->OUT) | (LCD_EN);
 
 void lcd8bits_init(void)
 {
-    LCD_CONTROL_PORT->DIR = LCD_CONTROL_PORT->DIR | ((0x01<<LCD_RS) | (0x01<<LCD_EN));
-    LCD_CONTROL_PORT->SEL0 = LCD_CONTROL_PORT->SEL0 & (~(0x01<<LCD_RS) | ~(0x01<<LCD_EN));
-    LCD_CONTROL_PORT->SEL1 = LCD_CONTROL_PORT->SEL1 & (~(0x01<<LCD_RS) | ~(0x01<<LCD_EN));
+    LCD_CONTROL_PORT->DIR = LCD_CONTROL_PORT->DIR | ((LCD_RS) | (LCD_EN));
+    LCD_CONTROL_PORT->SEL0 = LCD_CONTROL_PORT->SEL0 & (~(LCD_RS) | ~(LCD_EN));
+    LCD_CONTROL_PORT->SEL1 = LCD_CONTROL_PORT->SEL1 & (~(LCD_RS) | ~(LCD_EN));
     LCD_DATA->DIR = 0b11111111;
     LCD_DATA->SEL0 = 0b00000000;
     LCD_DATA->SEL1 = 0b00000000;
@@ -177,7 +177,7 @@ void lcd_SetLineNumber(unsigned char position) {
 void delay_ms(unsigned int nrms) {
     unsigned int i, j;
     for (j = 0; j < nrms; j++)
-        for (i = 0; i < 20; i++);
+        for (i = 0; i < 320; i++);
 }
 
 

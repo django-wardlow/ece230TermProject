@@ -6,18 +6,67 @@
 #include "csLFXT.h"
 #include <stdio.h>
 #include "lcd8bits.h"
+#include "flash.h"
 
 
+uint64_t curTime = 0;
 
 void card_read(uint32_t uid){
-    printf("card with uid %d read", uid);
-    lcd_off();
+    lcd_clear();
+
+    char DataBuffer[16];
+
+    sprintf(DataBuffer, "%d t:%d", uid, (int)curTime);
+
+    lcd_puts(DataBuffer);
+
+    lcd_SetLineNumber(SecondLine);
+
+    //gets a blank card if it does not exist
+    struct CardData card;
+
+    card = get_card_from_mem(uid);
+
+    //init if card is blank
+    if(card.uid == 0){
+        card.uid = uid;
+        card.clock_in_time = 0;
+        card.clocked_in = 0;
+        card.accumulated_time = 0;
+    }
+
+    if(card.clocked_in == 1){
+        card.clocked_in = 0;
+        uint64_t time = curTime - card.clock_in_time;
+        card.accumulated_time += time;
+        sprintf(DataBuffer, "ci %d, total %d", time, card.accumulated_time);
+        lcd_puts(DataBuffer);
+
+        update_card_in_memmory(card);
+    }
+    else{
+        card.clocked_in = 1;
+
+        card.clock_in_time = curTime;
+
+        sprintf(DataBuffer, "clocked in");
+        lcd_puts(DataBuffer);
+
+        update_card_in_memmory(card);
+        
+    }
+
+
+//    lcd_off();
+
+
+
 }
 
 /**
  * main.c
  */
-void main2(void)
+void main(void)
 {
 	WDT_A_holdTimer();
 
@@ -27,13 +76,11 @@ void main2(void)
     
     configHFXT();
 
-    init_rfid();
-
-    rfid_set_card_read_function(card_read);
+    init_flash_memory();
 
     char DataBuffer[16];
 
-    sprintf(DataBuffer, "test");
+    sprintf(DataBuffer, "on");
 
 //    LCD_Initializtion();    //this can be either 4-bit or 8-bit configuration
     lcd8bits_init();
@@ -44,12 +91,26 @@ void main2(void)
 
     printf("starting spin");
 
+    init_rfid();
+
+    rfid_set_card_read_function(card_read);
+
+    curTime = 0;
+
     while(1){
         //activateRec();
         //printf("read: %d", read_uid_sum());
         /* Sleeping when not in use */
 
-        PCM_gotoLPM0();
+        // PCM_gotoLPM0();
+
+        curTime++;
+     //   DelayMs(100);
+
+//        lcd_clear();
+//
+//        sprintf(DataBuffer, "%d", curTime);
+//        lcd_puts(DataBuffer);
 
     }
 }

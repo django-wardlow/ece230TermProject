@@ -17,21 +17,21 @@
 
 struct CardData cards[CARD_COUNT];
 
-int main(){
-
-    init_flash_memory();
-
-    memset(cards, 0, CARD_BYTES);
-
-    wright_cards_to_mem();
-
-
-    while(1){
-
-    }
-
-
-}
+// int main(){
+//
+//     init_flash_memory();
+//
+//     memset(cards, 0, CARD_BYTES);
+//
+//     wright_cards_to_mem();
+//
+//
+//     while(1){
+//
+//     }
+//
+//
+// }
 
 void init_flash_memory(void){
 
@@ -99,6 +99,8 @@ struct CardData get_card_from_mem(int uid){
             i++;
         }
     }
+
+    return out;
 }
 
 //updates a cards data in memmory

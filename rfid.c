@@ -17,6 +17,7 @@
 
 #include <spi.h>
 #include "rfid.h"
+#include "lcd8bits.h"
 
 void (*read_fn)(uint32_t);
 
@@ -69,16 +70,36 @@ void init_rfid(void)
 }
 
 
-/* Timer32 ISR */
+/* Timer_A0 ISR */
 void TA0_N_IRQHandler(void)
 {
+    Timer_A_stopTimer(TIMER_A0_BASE);
+
+    //disable intrupt
+    TIMER_A0->CTL &= ~TIMER_A_TAIE_INTERRUPT_ENABLE;
+
     Timer_A_clearInterruptFlag(TIMER_A0_BASE);
+
+
+
+
+   // lcd_putch("r");
 
     uint32_t uid = try_read_uid_sum();
 
     if(uid != 0){
         read_fn(uid);
     }
+
+    Timer_A_clearInterruptFlag(TIMER_A0_BASE);
+
+    //enable intrupt
+    TIMER_A0->CTL |= TIMER_A_TAIE_INTERRUPT_ENABLE;
+
+    Timer_A_startCounter(TIMER_A0_BASE, TIMER_A_UP_MODE);
+
+
+
 }
 
 void rfid_set_card_read_function(void (*read)(uint8_t)){
@@ -125,7 +146,7 @@ void DelayMs(unsigned int nrms)
 {
     unsigned int i, j;
     for (j = 0; j < nrms; j++)
-        for (i = 0; i < 20; i++)
+        for (i = 0; i < 320; i++)
             ;
 }
 
