@@ -16,7 +16,7 @@
 extern void Display(unsigned char , unsigned int );
 
 /* delay for indicated nr of ms */
-extern void DelayMs(unsigned int);
+extern void delay_ms(unsigned int);
 
 /* write a byte to the LCD in 8 bit mode */
 extern void lcd8bits_write(unsigned char mode, unsigned char CmdChar);

@@ -56,7 +56,7 @@ void init_rfid(void)
     Timer_A_configureUpMode(TIMER_A0_BASE, &upModeConfig);
 
     /* Enabling interrupts and going to sleep */
-    Interrupt_enableSleepOnIsrExit();
+    //Interrupt_enableSleepOnIsrExit();
     Interrupt_enableInterrupt(INT_TA0_N);
 
     /* Enabling MASTER interrupts */

@@ -38,8 +38,10 @@ void card_read(uint32_t uid){
     if(card.clocked_in == 1){
         card.clocked_in = 0;
         uint64_t time = curTime - card.clock_in_time;
-        card.accumulated_time += time;
-        sprintf(DataBuffer, "ci %d, total %d", time, card.accumulated_time);
+        uint64_t acum_time = card.accumulated_time;
+        acum_time += time;
+        sprintf(DataBuffer, "ci:%d, t:%d", time, acum_time);
+        card.accumulated_time = acum_time;
         lcd_puts(DataBuffer);
 
         update_card_in_memmory(card);
@@ -82,10 +84,11 @@ void main(void)
 
     sprintf(DataBuffer, "on");
 
-//    LCD_Initializtion();    //this can be either 4-bit or 8-bit configuration
     lcd8bits_init();
 
     lcd_SetLineNumber(FirstLine);
+
+    //lcd_putch('r');
 
     lcd_puts(DataBuffer);
 
@@ -105,8 +108,8 @@ void main(void)
         // PCM_gotoLPM0();
 
         curTime++;
-     //   DelayMs(100);
-
+        DelayMs(1000);
+//
 //        lcd_clear();
 //
 //        sprintf(DataBuffer, "%d", curTime);

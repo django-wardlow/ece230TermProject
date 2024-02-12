@@ -17,6 +17,7 @@
 
 struct CardData cards[CARD_COUNT];
 
+//clear flash back to 0
 // int main(){
 //
 //     init_flash_memory();
