@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "lcd8bits.h"
 #include "flash.h"
+#include "rtc.h"
 
 
 uint64_t curTime = 0;
@@ -78,44 +79,46 @@ void main(void)
     
     configHFXT();
 
-    init_flash_memory();
+    get_rtc();
 
-    char DataBuffer[16];
-
-    sprintf(DataBuffer, "on");
-
-    lcd8bits_init();
-
-    lcd_SetLineNumber(FirstLine);
-
-    //lcd_putch('r');
-
-    lcd_puts(DataBuffer);
-
-    printf("starting spin");
-
-    init_rfid();
-
-    rfid_set_card_read_function(card_read);
-
-    curTime = 0;
-
-    while(1){
-        //activateRec();
-        //printf("read: %d", read_uid_sum());
-        /* Sleeping when not in use */
-
-        // PCM_gotoLPM0();
-
-        curTime++;
-        DelayMs(1000);
+//    init_flash_memory();
 //
-//        lcd_clear();
+//    char DataBuffer[16];
 //
-//        sprintf(DataBuffer, "%d", curTime);
-//        lcd_puts(DataBuffer);
+//    sprintf(DataBuffer, "on");
+//
+//    lcd8bits_init();
+//
+//    lcd_SetLineNumber(FirstLine);
+//
+//    //lcd_putch('r');
+//
+//    lcd_puts(DataBuffer);
+//
+//    printf("starting spin");
+//
+//    init_rfid();
+//
+//    rfid_set_card_read_function(card_read);
+//
+//    curTime = 0;
+//
+//    while(1){
+//        //activateRec();
+//        //printf("read: %d", read_uid_sum());
+//        /* Sleeping when not in use */
+//
+//        // PCM_gotoLPM0();
+//
+//        curTime++;
+//        DelayMs(1000);
+////
+////        lcd_clear();
+////
+////        sprintf(DataBuffer, "%d", curTime);
+////        lcd_puts(DataBuffer);
 
-    }
+//    }
 }
 
 
