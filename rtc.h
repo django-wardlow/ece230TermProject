@@ -9,13 +9,13 @@
 #ifndef I2C_DRIVER_FUNCTIONS_H_
 #define I2C_DRIVER_FUNCTIONS_H_
 
-#define I2Cport_EUSCI_B3 P6
-#define SCLPIN_EUSCI_B3 BIT7
-#define SDAPIN_EUSCI_B3 BIT6
+#define I2Cport_EUSCI_B0 P1
+#define SCLPIN_EUSCI_B0 BIT7
+#define SDAPIN_EUSCI_B0 BIT6
 
 void configureRTC(void);
 
-void I2C_Configure_EUSCI_B3(uint8_t Device_Address, uint16_t Baud_Count);
+void I2C_Configure_EUSCI_B0(uint8_t Device_Address, uint16_t Baud_Count);
 
 void I2C_write_Data(unsigned char write_data);
 
@@ -25,13 +25,13 @@ void I2C_wait_for_device_ready(unsigned char control_byte);
 
 void I2C_acknowledge(void);
 
-uint8_t I2C_Start_Write_EUSCI_B3(void);
+uint8_t I2C_Start_Write_EUSCI_B0(void);
 
-uint8_t I2C_Start_Read_EUSCI_B3(void);
+uint8_t I2C_Start_Read_EUSCI_B0(void);
 
-uint8_t I2C_Write_Byte_EUSCI_B3(uint8_t data);
+uint8_t I2C_Write_Byte_EUSCI_B0(uint8_t data);
 
-uint8_t I2C_Read_Byte_EUSCI_B3(void);
+uint8_t I2C_Read_Byte_EUSCI_B0(void);
 
 uint8_t I2C_send_NACK_Bit(void);
 

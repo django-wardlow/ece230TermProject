@@ -78,8 +78,9 @@ void main(void)
     configLFXT();
     
     configHFXT();
-
-    get_rtc();
+    while(1){
+        get_rtc();
+    }
 
 //    init_flash_memory();
 //
