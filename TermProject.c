@@ -23,6 +23,8 @@ void card_read(uint32_t uid){
 
     lcd_SetLineNumber(SecondLine);
 
+    uint64_t current_time = get_rtc_time();
+
     //gets a blank card if it does not exist
     struct CardData card;
 
@@ -38,7 +40,7 @@ void card_read(uint32_t uid){
 
     if(card.clocked_in == 1){
         card.clocked_in = 0;
-        uint64_t time = curTime - card.clock_in_time;
+        uint64_t time = current_time - card.clock_in_time;
         uint64_t acum_time = card.accumulated_time;
         acum_time += time;
         sprintf(DataBuffer, "ci:%d, t:%d", time, acum_time);
@@ -50,7 +52,7 @@ void card_read(uint32_t uid){
     else{
         card.clocked_in = 1;
 
-        card.clock_in_time = curTime;
+        card.clock_in_time = current_time;
 
         sprintf(DataBuffer, "clocked in");
         lcd_puts(DataBuffer);
@@ -79,46 +81,48 @@ void main(void)
     
     configHFXT();
 
-    get_rtc();
+    configure_rtc();
 
-//    init_flash_memory();
-//
-//    char DataBuffer[16];
-//
-//    sprintf(DataBuffer, "on");
-//
-//    lcd8bits_init();
-//
-//    lcd_SetLineNumber(FirstLine);
-//
-//    //lcd_putch('r');
-//
-//    lcd_puts(DataBuffer);
-//
-//    printf("starting spin");
-//
-//    init_rfid();
-//
-//    rfid_set_card_read_function(card_read);
-//
-//    curTime = 0;
-//
-//    while(1){
-//        //activateRec();
-//        //printf("read: %d", read_uid_sum());
-//        /* Sleeping when not in use */
-//
-//        // PCM_gotoLPM0();
-//
+    init_flash_memory();
+
+    char DataBuffer[16];
+
+    sprintf(DataBuffer, "ready");
+
+    lcd8bits_init();
+
+    lcd_SetLineNumber(FirstLine);
+
+    //lcd_putch('r');
+
+    lcd_puts(DataBuffer);
+
+    printf("starting spin");
+
+    init_rfid();
+
+    rfid_set_card_read_function(card_read);
+
+    curTime = 0;
+
+    while(1){
+        lcd_clear();
+        lcd_puts(DataBuffer);
+        //activateRec();
+        //printf("read: %d", read_uid_sum());
+        /* Sleeping when not in use */
+
+        //PCM_gotoLPM0();
+
 //        curTime++;
-//        DelayMs(1000);
-////
-////        lcd_clear();
-////
-////        sprintf(DataBuffer, "%d", curTime);
-////        lcd_puts(DataBuffer);
+        DelayMs(100);
+//
+//
+//
+//        sprintf(DataBuffer, "%d", curTime);
+//        lcd_puts(DataBuffer);
 
-//    }
+    }
 }
 
 
