@@ -43,7 +43,8 @@ void configure_rtc(void)
 
 uint64_t get_rtc_time(void)
 {
-    I2C_setMode(EUSCI_B1_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
+
+    configure_rtc();
 
     while (MAP_I2C_masterIsStopSent(EUSCI_B1_BASE) == EUSCI_B_I2C_SENDING_STOP);
 
@@ -86,6 +87,8 @@ uint64_t get_rtc_time(void)
     I2C_masterReceiveMultiByteStop(EUSCI_B1_BASE);
 
     received_bytes[6] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+
+    I2C_clearInterruptFlag(EUSCI_B1_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
     return create_time_stamp();
 }
@@ -211,4 +214,23 @@ uint64_t lookup_day(uint8_t day, uint8_t month, uint8_t year)
     {
         return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30) * 86400;
     }
+}
+
+void convert_to_readable(uint64_t seconds){
+    int hours = 0;
+    int mins = 0;
+    while(seconds > SEC_PER_HOUR){
+        hours++;
+        seconds -= SEC_PER_HOUR;
+    }
+
+    while (seconds > SEC_PER_MIN){
+        mins++;
+        seconds -= SEC_PER_MIN;
+    }
+
+    second_convert_data[0] = seconds;
+    second_convert_data[1] = mins;
+    second_convert_data[2] = hours;
+    
 }
