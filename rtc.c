@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
 #include "rtc.h"
 #include "driverlib.h"
 
@@ -154,5 +153,62 @@ uint64_t create_time_stamp(void)
 
     uint8_t year = 10 * (year_byte >> 4) + (year_byte & 0xF);
 
-    return 0;
+    uint64_t time = (31540000) * (uint64_t)year + (3600) * (uint64_t)hours + (60) * (uint64_t)min + (uint64_t)sec + lookup_day(date, month, year);
+    return time;
+}
+
+uint64_t lookup_day(uint8_t day, uint8_t month, uint8_t year)
+{
+    if (month == 1)
+    {
+        return (uint64_t)day * 86400;
+    }
+    else if (month == 2)
+    {
+        return (uint64_t)(day + 31) * 86400;
+    }
+    if (year % 4 == 0)
+    {
+        day += 1;
+    }
+    else if (month == 3)
+    {
+        return (uint64_t)(day + 31 + 28) * 86400;
+    }
+    else if (month == 4)
+    {
+        return (uint64_t)(day + 31 + 28 + 31) * 86400;
+    }
+    else if (month == 5)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30) * 86400;
+    }
+    else if (month == 6)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31) * 86400;
+    }
+    else if (month == 7)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30) * 86400;
+    }
+    else if (month == 8)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30 + 31) * 86400;
+    }
+    else if (month == 9)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30 + 31 + 31) * 86400;
+    }
+    else if (month == 10)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30) * 86400;
+    }
+    else if (month == 11)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31) * 86400;
+    }
+    else if (month == 12)
+    {
+        return (uint64_t)(day + 31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30) * 86400;
+    }
 }
