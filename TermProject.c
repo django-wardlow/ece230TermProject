@@ -45,6 +45,7 @@ void card_read(uint32_t uid){
     //if clocked in
     if(card.clocked_in == 1){
         sprintf(DataBuffer, "clocked out");
+        lcd_puts(DataBuffer);
         
         //clock card out
         card.clocked_in = 0;
@@ -60,7 +61,7 @@ void card_read(uint32_t uid){
 
         //diaply clock out info on display
 
-        delay_ms(DISP_HOLD);
+        delay(DISP_HOLD/2);
         
         //display time clocked in
         lcd_clear();
@@ -75,7 +76,7 @@ void card_read(uint32_t uid){
         sprintf(DataBuffer, "%d:%d:%d", second_convert_data[2], second_convert_data[1], second_convert_data[0]);
         lcd_puts(DataBuffer);
 
-        delay_ms(DISP_HOLD);
+        delay(DISP_HOLD);
 
         //display accumulated time
 
@@ -107,7 +108,7 @@ void card_read(uint32_t uid){
     }
 
 
-    delay_ms(DISP_HOLD);
+    delay(DISP_HOLD);
     
     //return ready message
     lcd_clear();
@@ -142,10 +143,19 @@ void main(void)
     //make card scan call card_read()
     rfid_set_card_read_function(card_read);
 
+    //configure clear flash button pins
+
+    GPIO_setAsInputPinWithPullUpResistor(BUTTON_PORT, BUTTON_PIN);
+
     //spin
     while(1){
         
         //PCM_gotoLPM0();
+
+        //clears the flash memmory when S2 is pressed, used for debugging
+        if(GPIO_getInputPinValue(BUTTON_PORT, BUTTON_PIN) == GPIO_INPUT_PIN_LOW){
+            flash_reset();
+        }
 
 
     }

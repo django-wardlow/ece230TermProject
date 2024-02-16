@@ -1,3 +1,8 @@
+/*
+* Reads the time from an RTC module over i2c
+* Author: Justin Zimmerman, Django Wardlow
+*/
+
 #include <msp.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -19,92 +24,99 @@ const eUSCI_I2C_MasterConfig i2cConfig =
         EUSCI_B_I2C_NO_AUTO_STOP                // No Autostop
 };
 
+//configures the eusci for communication with the rtc
 void configure_rtc(void)
 {
     //set pins for i2c
-    GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P6,
-            GPIO_PIN4 + GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION);
+    GPIO_setAsPeripheralModuleFunctionInputPin(I2Cport_EUSCI_B1,
+            SDAPIN_EUSCI_B1 + SCLPIN_EUSCI_B1, GPIO_PRIMARY_MODULE_FUNCTION);
 
     //configure i2c perfiral
-    I2C_initMaster(EUSCI_B1_BASE, &i2cConfig);
+    I2C_initMaster(EUSCI_PERIPHERAL, &i2cConfig);
 
     /* Specify slave address */
-    I2C_setSlaveAddress(EUSCI_B1_BASE, rtc_address);
+    I2C_setSlaveAddress(EUSCI_PERIPHERAL, rtc_address);
 
     /* Set Master in transmit mode */
-    I2C_setMode(EUSCI_B1_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
+    I2C_setMode(EUSCI_PERIPHERAL, EUSCI_B_I2C_TRANSMIT_MODE);
 
     /* Enable I2C Module to start operations */
-    I2C_enableModule(EUSCI_B1_BASE);
+    I2C_enableModule(EUSCI_PERIPHERAL);
 
-    I2C_clearInterruptFlag(EUSCI_B1_BASE,
+    I2C_clearInterruptFlag(EUSCI_PERIPHERAL,
             EUSCI_B_I2C_TRANSMIT_INTERRUPT0 + EUSCI_B_I2C_NAK_INTERRUPT);
 }
 
+//get a timestamp in seconds from the rtc
 uint64_t get_rtc_time(void)
 {
-
+    //ensure that the rtc is configured
     configure_rtc();
 
-    while (MAP_I2C_masterIsStopSent(EUSCI_B1_BASE) == EUSCI_B_I2C_SENDING_STOP);
+    //wait for any pending data to be seent
+    while (MAP_I2C_masterIsStopSent(EUSCI_PERIPHERAL) == EUSCI_B_I2C_SENDING_STOP);
 
     //start send
-    I2C_masterSendMultiByteStart(EUSCI_B1_BASE, time_address);
+    I2C_masterSendMultiByteStart(EUSCI_PERIPHERAL, time_address);
 
     //wait for send to finish
     wait_for_status(EUSCI_B_I2C_TRANSMIT_INTERRUPT0);
 
-    I2C_setMode(EUSCI_B1_BASE, EUSCI_B_I2C_RECEIVE_MODE);
+    //start recieve and read 6 bytes of data from the rtc
+    I2C_setMode(EUSCI_PERIPHERAL, EUSCI_B_I2C_RECEIVE_MODE);
 
-    I2C_masterReceiveStart(EUSCI_B1_BASE);
-
-    wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
-
-    received_bytes[0] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    I2C_masterReceiveStart(EUSCI_PERIPHERAL);
 
     wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
-    received_bytes[1] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    received_bytes[0] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
 
     wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
-    received_bytes[2] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    received_bytes[1] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
 
     wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
-    received_bytes[3] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    received_bytes[2] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
+
+    wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+
+    received_bytes[3] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
     
     wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
-    received_bytes[4] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    received_bytes[4] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
 
     wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
-    received_bytes[5] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    received_bytes[5] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
 
     wait_for_status(EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
-    I2C_masterReceiveMultiByteStop(EUSCI_B1_BASE);
+    I2C_masterReceiveMultiByteStop(EUSCI_PERIPHERAL);
 
-    received_bytes[6] = I2C_masterReceiveMultiByteNext(EUSCI_B1_BASE);
+    received_bytes[6] = I2C_masterReceiveMultiByteNext(EUSCI_PERIPHERAL);
 
-    I2C_clearInterruptFlag(EUSCI_B1_BASE, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
+    I2C_clearInterruptFlag(EUSCI_PERIPHERAL, EUSCI_B_I2C_RECEIVE_INTERRUPT0);
 
+    //parse the data into a timestamp
     return create_time_stamp();
 }
 
+//wait for the eusci to set some particular intrupt flag
 void wait_for_status(uint_fast16_t goal){
     uint_fast16_t status;
 
-    status = I2C_getInterruptStatus(EUSCI_B1_BASE, goal);
+    status = I2C_getInterruptStatus(EUSCI_PERIPHERAL, goal);
 
     while (status == 0){
-        status = I2C_getInterruptStatus(EUSCI_B1_BASE, goal);
+        status = I2C_getInterruptStatus(EUSCI_PERIPHERAL, goal);
     }
 
-    I2C_clearInterruptFlag(EUSCI_B1_BASE, goal);
+    I2C_clearInterruptFlag(EUSCI_PERIPHERAL, goal);
 }
 
+//convert the parsed data into a timestamp in seconds
 uint64_t create_time_stamp(void)
 {
     enum
@@ -160,6 +172,7 @@ uint64_t create_time_stamp(void)
     return time;
 }
 
+//convert day to seconds
 uint64_t lookup_day(uint8_t day, uint8_t month, uint8_t year)
 {
     if (month == 1)
@@ -216,6 +229,7 @@ uint64_t lookup_day(uint8_t day, uint8_t month, uint8_t year)
     }
 }
 
+//convert a time in seconds to a number of hours, mins, and seconds
 void convert_to_readable(uint64_t seconds){
     int hours = 0;
     int mins = 0;

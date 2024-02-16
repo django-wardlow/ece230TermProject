@@ -18,21 +18,13 @@
 struct CardData cards[CARD_COUNT];
 
 ////clear flash back to 0
-// int main(){
-//
-//     init_flash_memory();
-//
-//     memset(cards, 0, CARD_BYTES);
-//
-//     wright_cards_to_mem();
-//
-//
-//     while(1){
-//
-//     }
-//
-//
-// }
+void flash_reset(void){
+
+    memset(cards, 0, CARD_BYTES);
+
+    wright_cards_to_mem();
+
+}
 
 void init_flash_memory(void){
 
@@ -106,7 +98,7 @@ struct CardData get_card_from_mem(int uid){
 
 //updates a cards data in memmory
 //if the card does not exist then it is added
-void update_card_in_memmory(struct CardData new_card){
+void update_card_in_memory(struct CardData new_card){
 
     //loop through cards until the corect one is found or a invalid card is found
     int i = 0;

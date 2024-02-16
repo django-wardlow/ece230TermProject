@@ -2,14 +2,16 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "driverlib.h"
 
 #define rtc_address 0x68
 #define time_address 0x00
 
-#ifndef I2C_DRIVER_FUNCTIONS_H_
-#define I2C_DRIVER_FUNCTIONS_H_
+#ifndef RTC_H_
+#define RTC_H_
 
-#define I2Cport_EUSCI_B1 P6
+#define EUSCI_PERIPHERAL EUSCI_B1_BASE
+#define I2Cport_EUSCI_B1 GPIO_PORT_P6
 #define SCLPIN_EUSCI_B1 BIT5
 #define SDAPIN_EUSCI_B1 BIT4
 
@@ -18,10 +20,11 @@
 
 int second_convert_data[3];
 
+
 void configure_rtc(void);
 
 uint64_t get_rtc_time(void);
 
 void convert_to_readable(uint64_t seconds);
 
-#endif /* I2C_DRIVER_FUNCTIONS_H_ */
+#endif /* RTC_H_ */

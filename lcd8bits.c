@@ -1,4 +1,4 @@
-//File Name: lcd8bits_ece230winter23_24.c
+//File Name: lcd8bits.c
 //Author: Jianjian Song
 //Date: January 24, 2024
 //ECE230-01/02 Winter 2023-2024
@@ -29,32 +29,6 @@
  *	  Pins 7-14: LCD data bits 0-7 LCD
  *	  Pin 15: +4.2V for LED back light
  *	  Pin 16: GND for LED back light
- *	
- *	The available routines in this file are:
- *
- *    1.  lcd8bits_bits( )
- *        Always call lcd_init() first, which follows the manufacturer's
- *        directions for initializing the LCD display panel into 8-bit transfer mode.
- *        Then you may call any of the other routines, as needed.  Note that this
- *        initialization routine also makes RD7:0 all outputs, as required to drive
- *		  the LCD panel connected to RD7:0.  It also selects 8 MHz internal clock.
- *
- *    2.  lcd_clear( )
- *        Clears LCD display and homes the cursor
- *
- *	  3.  lcd_puts(const char s*)
- *        writes a constant character string to the lcd panel
- *
- *    4.  lcd_putch(char s)
- *        writes a single character to lcd panel
- *
- *    5.  lcd_goto(unsigned char pos)
- *        Moves cursor to desired position.  For 16 x 2 LCD display panel, 
- *        the columns of Row 1 are 0x00....0x10
- *        the columns of Row 2 are 0x40....0x50
- *
- *	  6.  DelayMs(unsigned int NrMs)
- *		  Delays for NrMs milliseconds.
  *
  */
 #include <msp.h>
@@ -101,13 +75,13 @@ void lcd8bits_init(void)
 
     Set_Enable_Low
 
-    delay_ms(20); // wait 15mSec after power applied,
+    delay(20); // wait 15mSec after power applied,
     lcd8bits_write(CMD_MODE, LCDCMD_FunctionSet); // function set: 8-bit mode, 2 lines, 5x7 dots
-    delay_ms(4);
+    delay(4);
     lcd8bits_write(CMD_MODE, LCDCMD_DisplaySettings); // display ON/OFF control: display on, cursor off, blink off
-    delay_ms(4);
+    delay(4);
     lcd_clear(); // Clear screen
-    delay_ms(4);
+    delay(4);
     lcd8bits_write(CMD_MODE, LCDCMD_EMS); // Set entry Mode
 } //end lcd8bits_init()
 
@@ -115,7 +89,7 @@ void lcd8bits_init(void)
 //writes data on LCD Panel pin DB7-0 into LCD Panel.
 void LCD_STROBE(void) {
     Set_Enable_High
-    delay_ms(10);
+    delay(10);
     Set_Enable_Low
 }
 
@@ -129,7 +103,7 @@ void lcd8bits_write(unsigned char mode, unsigned char CmdChar) {
 
     if(mode==CMD_MODE) Set_Command_Mode //LCD_CONTROL_PORT->OUT = (LCD_CONTROL_PORT->OUT) & (~(0b1<<LCD_RS));
     else {Set_Data_Mode; }
-    delay_ms(10);
+    delay(10);
     LCD_DATA->OUT = CmdChar;
     LCD_STROBE(); // Write 8 bits of data on D7-0
 }
@@ -145,7 +119,7 @@ void lcd_puts(char *string) {
  */
 void lcd_clear(void) {
     lcd8bits_write(CMD_MODE, LCDCMD_ClearDisplay);
-    delay_ms(2);
+    delay(2);
 }
 
 /* write one character to the LCD */
@@ -174,7 +148,7 @@ void lcd_SetLineNumber(unsigned char position) {
     // followed by the panel position address (0x00- 0x7F)
 }
 
-void delay_ms(unsigned int nrms) {
+void delay(unsigned int nrms) {
     unsigned int i, j;
     for (j = 0; j < nrms; j++)
         for (i = 0; i < 320; i++);
