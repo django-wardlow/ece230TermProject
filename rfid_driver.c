@@ -7,7 +7,7 @@
  * only the uid read, as done in the example, was tested so any more advanced features may not work
  * 
  * assumes that pins are connected as follows
- *  P3.2 -> SDA
+ *  P3.2 -> SDA/home/user1/Documents/schmatic.pdf
  *  P1.5 -> SCK
  *  P1.6 -> MOSI
  *  P1.7 -> MISO

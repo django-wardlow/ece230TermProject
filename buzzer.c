@@ -3,6 +3,8 @@
  *
  *  Created on: Feb 16, 2024
  *      Author: Django Wardlow
+ *
+ *      Adapted from MSPware example MSP432 Timer_A - Variable PWM by Timothy Logan
  */
 
 #include "buzzer.h"
