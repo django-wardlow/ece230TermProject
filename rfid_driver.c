@@ -1,14 +1,23 @@
 /*
- * Driver for the RC522 rfid 
- * Based on the MSPwere driverlib MSP432 SPI - 3-wire Master Incremented Data example by Timothy Logan
- * and Based on the MFRC522 arduino library by Miki Balboa 
- *
+ * A fairly complete port of the MFRC522 arduino library by Miki Balboa
+ * https://github.com/miguelbalboa/rfid/tree/master
+ * 
+ * SPI implementation based on the MSPware driverlib MSP432 SPI - 3-wire Master Incremented Data example by Timothy Logan
+ * 
+ * only the uid read, as done in the example, was tested so any more advanced features may not work
+ * 
+ * assumes that pins are connected as follows
+ *  P3.2 -> SDA
+ *  P1.5 -> SCK
+ *  P1.6 -> MOSI
+ *  P1.7 -> MISO
  *
  * Author: Django Wardlow
- * Date: 2/3/24
+ * Date: 2/16/24
  */
 
 /* DriverLib Includes */
+#include <rfid_driver.h>
 #include "driverlib.h"
 
 /* Standard Includes */
@@ -16,131 +25,21 @@
 #include <stdio.h> //printf(); sprintf();
 
 #include <spi.h>
-#include "rfid.h"
-#include "lcd8bits.h"
 
-void (*read_fn)(uint32_t);
-
-void init_rfid(void)
-{
-    volatile uint32_t ii;
-
-    /* Selecting P1.5 P1.6 and P1.7 in SPI mode */
-    GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1,
-                                               GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7, GPIO_PRIMARY_MODULE_FUNCTION);
-
-    //configure chip select pin
-    GPIO_setAsOutputPin(GPIO_PORT_P3, GPIO_PIN2);
-    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2);
-
-    /* Configuring SPI in 3wire master mode */
-    SPI_initMaster(EUSCI_B0_BASE, &spiMasterConfig);
-
-    /* Enable SPI module */
-    SPI_enableModule(EUSCI_B0_BASE);
-
-    /*disable spi intrupt*/
-    Interrupt_disableInterrupt(INT_EUSCIB0);
-
-    //init rfid reader
-    PCD_Init();
-
-    //activate reciver
-    PCD_WriteRegister(FIFODataReg, PICC_CMD_REQA);
-    PCD_WriteRegister(CommandReg, PCD_Transceive);
-    PCD_WriteRegister(BitFramingReg, 0x87);
-
-    //configure timer A0
-
-    /* Configuring Continuous Mode */
-    Timer_A_configureUpMode(TIMER_A0_BASE, &upModeConfig);
-
-    /* Enabling interrupts and going to sleep */
-    //Interrupt_enableSleepOnIsrExit();
-    Interrupt_enableInterrupt(INT_TA0_N);
-
-    /* Enabling MASTER interrupts */
-    Interrupt_enableMaster();
-
-    /* Starting the Timer_A0 in continuous mode */
-    Timer_A_startCounter(TIMER_A0_BASE, TIMER_A_UP_MODE);
-
-    printf("init sucess");
-
-}
-
-
-/* Timer_A0 ISR */
-void TA0_N_IRQHandler(void)
-{
-    Timer_A_stopTimer(TIMER_A0_BASE);
-
-    //disable intrupt
-    TIMER_A0->CTL &= ~TIMER_A_TAIE_INTERRUPT_ENABLE;
-
-    Timer_A_clearInterruptFlag(TIMER_A0_BASE);
-
-
-
-
-   // lcd_putch("r");
-
-    uint32_t uid = try_read_uid_sum();
-
-    if(uid != 0){
-        read_fn(uid);
-    }
-
-    Timer_A_clearInterruptFlag(TIMER_A0_BASE);
-
-    //enable intrupt
-    TIMER_A0->CTL |= TIMER_A_TAIE_INTERRUPT_ENABLE;
-
-    Timer_A_startCounter(TIMER_A0_BASE, TIMER_A_UP_MODE);
-
-
-
-}
-
-void rfid_set_card_read_function(void (*read)(uint8_t)){
-    read_fn = read;
-}
-
-
-uint32_t try_read_uid_sum(){
-
-    // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle. And if present, select one.
-   if (!PICC_IsNewCardPresent() || !PICC_ReadCardSerial())
-   {
-       return 0;
-   }
-
-   // Now a card is selected. The UID and SAK is in mfrc522.uid.
-
-   uint32_t s = get_uid_sum(&uid);
-
-   //printf("uid sum = %d \n", s);
-
-   PICC_HaltA();
-
-   return s;
-
-}
-
-uint32_t get_uid_sum(Uid *uid)
-{
-    uint32_t sum = 0;
-    uint8_t i;
-    for (i = 0; i < uid->size; i++)
+/* SPI Master Configuration Parameter */
+const eUSCI_SPI_MasterConfig spiMasterConfig =
     {
-        // print(uid.uidByte[i] < 0x10 ? " 0" : " ");
-        // print(uid.uidByte[i]);
+        EUSCI_SPI_CLOCKSOURCE_SMCLK,                             // SMCLK Clock Source
+        48000000,                                                // SMCLK = 48MHZ
+        4000000,                                                 // SPICLK = 4mhz
+        EUSCI_SPI_MSB_FIRST,                                     // MSB First
+        EUSCI_B_SPI_PHASE_DATA_CHANGED_ONFIRST_CAPTURED_ON_NEXT, // Phase
+        EUSCI_SPI_CLOCKPOLARITY_INACTIVITY_HIGH,                 // High polarity
+        EUSCI_SPI_3PIN                                           // 3Wire SPI Mode
+};
 
-        sum += uid->uiduint8_t[i];
-    }
-
-    return sum;
-}
+// Size of the MFRC522 FIFO
+uint8_t FIFO_SIZE = 64; // The FIFO is 64 uint8_ts.
 
 void DelayMs(unsigned int nrms)
 {
@@ -150,21 +49,45 @@ void DelayMs(unsigned int nrms)
             ;
 }
 
-uint8_t transfer(uint8_t t)
+//configures the eusci peripheral
+void configure_EUSCI(){
+    
+    //set pins for eusci to eusci mode
+    GPIO_setAsPeripheralModuleFunctionInputPin(EUSCI_PORT, EUSCI_PINS, GPIO_PRIMARY_MODULE_FUNCTION);
+
+    // configure chip select pin
+    GPIO_setAsOutputPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN);
+    GPIO_setOutputHighOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN);
+
+    /* Configuring SPI in 3wire master mode */
+    SPI_initMaster(EUSCI_PERIPHERAL, &spiMasterConfig);
+
+    /* Enable SPI module */
+    SPI_enableModule(EUSCI_PERIPHERAL);
+
+    /*disable spi intrupt*/
+    Interrupt_disableInterrupt(INT_EUSCIB0);
+
+}
+
+//sends a byte and receives a byte from the rfid module
+uint8_t transfer(uint8_t send)
 {
-    while (!(SPI_getInterruptStatus(EUSCI_B0_BASE, EUSCI_SPI_TRANSMIT_INTERRUPT)))
+    //wait for transmit to finish
+    while (!(SPI_getInterruptStatus(EUSCI_PERIPHERAL, EUSCI_SPI_TRANSMIT_INTERRUPT)))
         ;
 
     // send register
-    SPI_transmitData(EUSCI_B0_BASE, t);
+    SPI_transmitData(EUSCI_PERIPHERAL, send);
 
-    while (!(SPI_getInterruptStatus(EUSCI_B0_BASE, EUSCI_SPI_RECEIVE_INTERRUPT)))
+    //wait for data to be received
+    while (!(SPI_getInterruptStatus(EUSCI_PERIPHERAL, EUSCI_SPI_RECEIVE_INTERRUPT)))
         ;
 
     // read value
-    uint8_t value = SPI_receiveData(EUSCI_B0_BASE);
+    uint8_t value = SPI_receiveData(EUSCI_PERIPHERAL);
 
-    // EUSCI_B_SPI_clearInterruptFlag(EUSCI_B0_BASE, EUSCI_SPI_TRANSMIT_INTERRUPT | EUSCI_SPI_RECEIVE_INTERRUPT);
+    // EUSCI_B_SPI_clearInterruptFlag(EUSCI_PERIPHERAL, EUSCI_SPI_TRANSMIT_INTERRUPT | EUSCI_SPI_RECEIVE_INTERRUPT);
 
     return value;
 }
@@ -175,12 +98,12 @@ void PCD_WriteRegister(PCD_Register reg, ///< The register to write to. One of t
 {
 
     // SPI.beginTransaction(SPISettings(MFRC522_SPICLOCK, MSBFIRST, SPI_MODE0)); // Set the settings to work with SPI bus
-    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN2);
+    GPIO_setOutputLowOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN);
     // digitalWrite(_chipSelectPin, LOW);                                        // Select slave
     transfer(reg); // MSB == 0 is for writing. LSB is not used in address. Datasheet section 8.1.2.3.
     transfer(value);
     // digitalWrite(_chipSelectPin, HIGH); // Release slave again
-    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2);
+    GPIO_setOutputHighOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN);
 
     // SPI.endTransaction();               // Stop using the SPI bus
 } // End PCD_WriteRegister()
@@ -193,7 +116,7 @@ void PCD_WriteRegisters(PCD_Register reg, ///< The register to write to. One of 
 
     // SPI.beginTransaction(SPISettings(MFRC522_SPICLOCK, MSBFIRST, SPI_MODE0)); // Set the settings to work with SPI bus
     // digitalWrite(_chipSelectPin, LOW);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN2); // Select slave
+    GPIO_setOutputLowOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN); // Select slave
     transfer(reg);
 
     uint8_t i; // MSB == 0 is for writing. LSB is not used in address. Datasheet section 8.1.2.3.
@@ -202,7 +125,7 @@ void PCD_WriteRegisters(PCD_Register reg, ///< The register to write to. One of 
         transfer(values[i]);
     }
     // digitalWrite(_chipSelectPin, HIGH); // Release slave again
-    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2);
+    GPIO_setOutputHighOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN);
     // SPI.endTransaction();               // Stop using the SPI bus
 } // End PCD_Wri
 
@@ -212,11 +135,11 @@ uint8_t PCD_ReadRegister(PCD_Register reg ///< The register to read from. One of
     uint8_t value;
     // SPI.beginTransaction(SPISettings(MFRC522_SPICLOCK, MSBFIRST, SPI_MODE0)); // Set the settings to work with SPI bus
     // digitalWrite(_chipSelectPin, LOW);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN2); // Select slave
+    GPIO_setOutputLowOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN); // Select slave
     transfer(0x80 | reg);                            // MSB == 1 is for reading. LSB is not used in address. Datasheet section 8.1.2.3.
     value = transfer(0);                             // Read the value back. Send 0 to stop reading.
     // digitalWrite(_chipSelectPin, HIGH);
-    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2); // Release slave again
+    GPIO_setOutputHighOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN); // Release slave again
     // SPI.endTransaction();                                                     // Stop using the SPI bus
     return value;
 
@@ -239,7 +162,7 @@ void PCD_ReadRegisters(PCD_Register reg, ///< The register to read from. One of 
     // printf(F("Reading ")); 	printf(count); printf(F(" uint8_ts from register."));
     uint8_t address = 0x80 | reg; // MSB == 1 is for reading. LSB is not used in address. Datasheet section 8.1.2.3.
     uint8_t index = 0;
-    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN2); // Index in values array.
+    GPIO_setOutputLowOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN); // Index in values array.
     count--;                                         // One read is performed outside of the loop
     transfer(address);                               // Tell MFRC522 which address we want to read
     if (rxAlign)
@@ -258,7 +181,7 @@ void PCD_ReadRegisters(PCD_Register reg, ///< The register to read from. One of 
         index++;
     }
     values[index] = transfer(0); // Read the final uint8_t. Send 0 to stop reading.
-    GPIO_setOutputHighOnPin(GPIO_PORT_P3, GPIO_PIN2);
+    GPIO_setOutputHighOnPin(CHIP_SELECT_PORT, CHIP_SELECT_PIN);
 } // End PCD_ReadRegister()
 
 /**
@@ -335,6 +258,8 @@ StatusCode PCD_CalculateCRC(uint8_t *data,  ///< In: Pointer to the data to tran
  */
 void PCD_Init()
 {
+    //configures the EUSCI peripheral on the msp432
+    configure_EUSCI();
 
     PCD_Reset();
 

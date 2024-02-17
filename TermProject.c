@@ -1,3 +1,4 @@
+#include <rfid_wrapper.h>
 #include "msp.h"
 #include "driverlib.h"
 //#include "rfid.h"
@@ -9,6 +10,7 @@
 #include "flash.h"
 #include "rtc.h"
 #include "TermProject.h"
+#include "buzzer.h"
 
 //function called when card is read by rfid
 void card_read(uint32_t uid){
@@ -127,6 +129,8 @@ void main(void)
     
     configHFXT();
 
+    //configure_buzzer();
+
     configure_rtc();
 
     init_flash_memory();
@@ -138,7 +142,7 @@ void main(void)
 
     lcd_puts(ReadyMessage);
 
-    init_rfid();
+    rfid_init();
 
     //make card scan call card_read()
     rfid_set_card_read_function(card_read);
