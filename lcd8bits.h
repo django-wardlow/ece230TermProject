@@ -1,4 +1,4 @@
-//File Name: lcd8bitsece230winter23_24.h
+//File Name: lcd8bits.h
 //Author: Jianjian Song
 //Date: January 24, 2024
 //ECE230-01/02 Winter 2023-2024
@@ -15,8 +15,8 @@
 
 extern void Display(unsigned char , unsigned int );
 
-/* delay for indicated nr of ms */
-extern void delay_ms(unsigned int);
+/* delay for indicated # of arbitrary units */
+extern void delay(unsigned int);
 
 /* write a byte to the LCD in 8 bit mode */
 extern void lcd8bits_write(unsigned char mode, unsigned char CmdChar);

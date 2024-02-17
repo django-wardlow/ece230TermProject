@@ -30,12 +30,17 @@ struct CardData {
 
 #define CARD_BYTES (CARD_DATA_BYTES*CARD_COUNT)
 
-void init_flash_memory(void);
-void wright_cards_to_mem(void);
-void read_cards_from_mem();
-struct CardData get_card_from_mem(int uid);
-void update_card_in_memmory(struct CardData new_card);
+void flash_reset(void);
 
+void init_flash_memory(void);
+
+void wright_cards_to_mem(void);
+
+void read_cards_from_mem();
+
+struct CardData get_card_from_mem(int uid);
+
+void update_card_in_memory(struct CardData new_card);
 
 
 #endif /* FLASH_H_ */

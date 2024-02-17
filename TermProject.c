@@ -1,3 +1,4 @@
+#include <rfid_wrapper.h>
 #include "msp.h"
 #include "driverlib.h"
 // #include "rfid.h"
@@ -8,25 +9,32 @@
 #include "lcd8bits.h"
 #include "flash.h"
 #include "rtc.h"
-#include "LED.h"
+#include "TermProject.h"
+#include "buzzer.h"
 
-uint64_t curTime = 0;
-
+// function called when card is read by rfid
 void card_read(uint32_t uid)
 {
     lcd_clear();
 
+    // buffer for prints
     char DataBuffer[16];
 
-    sprintf(DataBuffer, "%d t:%d", uid, (int)curTime);
+    // sprintf(DataBuffer, "%d t:%d", uid, (int)(current_time - 760900000));
+
+    // print uuid onto display
+    sprintf(DataBuffer, "uid: %d", uid);
 
     lcd_puts(DataBuffer);
 
     lcd_SetLineNumber(SecondLine);
 
-    // gets a blank card if it does not exist
+    // gets time from RTC
+    uint64_t current_time = get_rtc_time();
+
     struct CardData card;
 
+    // gets a blank card if it does not exist
     card = get_card_from_mem(uid);
 
     // init if card is blank
@@ -38,93 +46,117 @@ void card_read(uint32_t uid)
         card.accumulated_time = 0;
     }
 
+    // if clocked in
     if (card.clocked_in == 1)
     {
-        card.clocked_in = 0;
-        uint64_t time = curTime - card.clock_in_time;
-        uint64_t acum_time = card.accumulated_time;
-        acum_time += time;
-        sprintf(DataBuffer, "ci:%d, t:%d", time, acum_time);
-        card.accumulated_time = acum_time;
+        sprintf(DataBuffer, "clocked out");
         lcd_puts(DataBuffer);
 
-        update_card_in_memmory(card);
+        // clock card out
+        card.clocked_in = 0;
+
+        // calculate time clocked out and update accumulated time
+        uint64_t time = current_time - card.clock_in_time;
+        uint64_t accumulated_time = card.accumulated_time;
+        accumulated_time += time;
+        card.accumulated_time = accumulated_time;
+
+        // wright new card data to mem
+        update_card_in_memory(card);
+
+        // diaply clock out info on display
+
+        delay(DISP_HOLD / 2);
+
+        // display time clocked in
+        lcd_clear();
+
+        sprintf(DataBuffer, "clocked in for:");
+        lcd_puts(DataBuffer);
+
+        convert_to_readable(time);
+
+        lcd_SetLineNumber(SecondLine);
+
+        sprintf(DataBuffer, "%d:%d:%d", second_convert_data[2], second_convert_data[1], second_convert_data[0]);
+        lcd_puts(DataBuffer);
+
+        delay(DISP_HOLD);
+
+        // display accumulated time
+
+        lcd_clear();
+
+        sprintf(DataBuffer, "accumulated:");
+        lcd_puts(DataBuffer);
+
+        convert_to_readable(accumulated_time);
+
+        lcd_SetLineNumber(SecondLine);
+
+        sprintf(DataBuffer, "%d:%d:%d", second_convert_data[2], second_convert_data[1], second_convert_data[0]);
+        lcd_puts(DataBuffer);
     }
     else
     {
         card.clocked_in = 1;
 
-        card.clock_in_time = curTime;
+        card.clock_in_time = current_time;
 
         sprintf(DataBuffer, "clocked in");
         lcd_puts(DataBuffer);
 
-        update_card_in_memmory(card);
+        update_card_in_memory(card);
     }
 
-    //    lcd_off();
+    delay(DISP_HOLD);
+
+    // return ready message
+    lcd_clear();
+    lcd_puts(ReadyMessage);
 }
 
-/**
- * main.c
- */
 void main(void)
 {
     WDT_A_holdTimer();
 
-    printf("start");
-
+    // configure clocks
     configLFXT();
 
     configHFXT();
 
-    InitializeRGBLEDs();
+    configure_buzzer();
 
-    Init_LED_timer();
+    configure_rtc();
 
-    while(1){}
+    init_flash_memory();
 
+    lcd8bits_init();
 
-    // while(1){
-    //     get_rtc();
-    // }
+    // display ready message
+    lcd_SetLineNumber(FirstLine);
 
-    //    init_flash_memory();
-    //
-    //    char DataBuffer[16];
-    //
-    //    sprintf(DataBuffer, "on");
-    //
-    //    lcd8bits_init();
-    //
-    //    lcd_SetLineNumber(FirstLine);
-    //
-    //    //lcd_putch('r');
-    //
-    //    lcd_puts(DataBuffer);
-    //
-    //    printf("starting spin");
-    //
-    //    init_rfid();
-    //
-    //    rfid_set_card_read_function(card_read);
-    //
-    //    curTime = 0;
-    //
-    //    while(1){
-    //        //activateRec();
-    //        //printf("read: %d", read_uid_sum());
-    //        /* Sleeping when not in use */
-    //
-    //        // PCM_gotoLPM0();
-    //
-    //        curTime++;
-    //        DelayMs(1000);
-    ////
-    ////        lcd_clear();
-    ////
-    ////        sprintf(DataBuffer, "%d", curTime);
-    ////        lcd_puts(DataBuffer);
+    lcd_puts(ReadyMessage);
 
-    //    }
+    rfid_init();
+
+    // make card scan call card_read()
+    rfid_set_card_read_function(card_read);
+
+    // configure clear flash button pins
+
+    GPIO_setAsInputPinWithPullUpResistor(BUTTON_PORT, BUTTON_PIN);
+
+    // spin
+    while (1)
+    {
+
+        // PCM_gotoLPM0();
+
+        // clears the flash memmory when S2 is pressed, used for debugging
+        if (GPIO_getInputPinValue(BUTTON_PORT, BUTTON_PIN) == GPIO_INPUT_PIN_LOW)
+        {
+            flash_reset();
+        }
+    }
 }
