@@ -116,7 +116,6 @@ void card_read(uint32_t uid){
     lcd_clear();
     lcd_puts(ReadyMessage);
 
-
 }
 
 
@@ -129,7 +128,7 @@ void main(void)
     
     configHFXT();
 
-    //configure_buzzer();
+    configure_buzzer();
 
     configure_rtc();
 

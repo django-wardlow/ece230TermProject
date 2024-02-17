@@ -2,7 +2,7 @@
  * buzzer.h
  *
  *  Created on: Feb 16, 2024
- *      Author: user1
+ *      Author: Django Wardlow
  */
 
 
@@ -11,6 +11,10 @@
 #ifndef BUZZER_H_
 #define BUZZER_H_
 
+//period in terms of ACLK ticks
+#define BUZZER_PERIOD 12
+
+#define BUZZER_TIMER TIMER_A2_BASE
 #define BUZZER_PORT GPIO_PORT_P5
 #define BUZZER_PIN GPIO_PIN6
 
