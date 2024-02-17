@@ -19,8 +19,6 @@ void card_read(uint32_t uid){
     //buffer for prints
     char DataBuffer[16];
 
-    //sprintf(DataBuffer, "%d t:%d", uid, (int)(current_time - 760900000));
-
     //print uuid onto display
     sprintf(DataBuffer, "uid: %d", uid);
 
