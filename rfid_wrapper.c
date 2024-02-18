@@ -2,7 +2,7 @@
  * rfid_wrapper.c
  *
  *  Created on: Feb 16, 2024
- *      Author: user1
+ *      Author: Django Wardlow
  */
 
 #include <rfid_driver.h>
@@ -39,6 +39,8 @@ void rfid_init(void)
     // Interrupt_enableSleepOnIsrExit();
     Interrupt_enableInterrupt(INT_TA0_N);
 
+    Interrupt_setPriority(TA0_N_IRQn, 0b00101111);
+
     /* Enabling MASTER interrupts */
     Interrupt_enableMaster();
 
@@ -64,6 +66,24 @@ void TA0_N_IRQHandler(void)
         read_fn(uid);
     }
 
+    Timer_A_clearInterruptFlag(TIMER_A0_BASE);
+
+    // enable intrupt
+    TIMER_A0->CTL |= TIMER_A_TAIE_INTERRUPT_ENABLE;
+
+    Timer_A_startCounter(TIMER_A0_BASE, TIMER_A_UP_MODE);
+}
+
+void disable_reading(void){
+    Timer_A_stopTimer(TIMER_A0_BASE);
+
+    // disable intrupt
+    TIMER_A0->CTL &= ~TIMER_A_TAIE_INTERRUPT_ENABLE;
+
+    Timer_A_clearInterruptFlag(TIMER_A0_BASE);
+}
+
+void enable_reading(void){
     Timer_A_clearInterruptFlag(TIMER_A0_BASE);
 
     // enable intrupt

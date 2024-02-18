@@ -168,12 +168,12 @@ uint64_t create_time_stamp(void)
 
     uint8_t year = 10 * (year_byte >> 4) + (year_byte & 0xF);
 
-    uint64_t time = (31540000) * (uint64_t)year + (3600) * (uint64_t)hours + (60) * (uint64_t)min + (uint64_t)sec + lookup_day(date, month, year);
+    uint64_t time = (31540000) * (uint64_t)year + (3600) * (uint64_t)hours + (60) * (uint64_t)min + (uint64_t)sec + lookup_day((uint32_t)date, month, year);
     return time;
 }
 
 //convert day to seconds
-uint64_t lookup_day(uint8_t day, uint8_t month, uint8_t year)
+uint64_t lookup_day(uint32_t day, uint8_t month, uint8_t year)
 {
     if (month == 1)
     {

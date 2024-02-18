@@ -7,40 +7,46 @@
                 <mxCell id="124" value="" style="edgeStyle=none;html=1;" parent="1" source="8" target="123" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="8" value="&lt;h1&gt;configure_rtc&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
+                <mxCell id="8" value="&lt;h1&gt;init_feedback&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
                     <mxGeometry x="50" y="50" width="190" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="89" value="configure eUSCI for I2C mode" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;strokeWidth=2;" parent="1" vertex="1">
-                    <mxGeometry x="85" y="340" width="120" height="60" as="geometry"/>
+                <mxCell id="89" value="configure timer A2 CCR0 to prouduce buzzer output frequency" style="rounded=1;whiteSpace=wrap;html=1;arcSize=0;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="62.5" y="340" width="165" height="80" as="geometry"/>
                 </mxCell>
                 <mxCell id="127" value="" style="edgeStyle=none;html=1;" parent="1" source="114" target="126" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="114" value="&lt;h1&gt;get_rtc_time&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
-                    <mxGeometry x="300" y="50" width="190" height="60" as="geometry"/>
+                <mxCell id="114" value="&lt;h1&gt;positive_feedback&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
+                    <mxGeometry x="266" y="50" width="260" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="125" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="123" target="89" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="145" y="330" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="123" value="Configure pins as outputs" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                <mxCell id="123" value="Configure led pins as outputs and turn red led on" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
                     <mxGeometry x="85" y="190" width="120" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="130" value="" style="edgeStyle=none;html=1;" parent="1" source="126" target="129" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="126" value="Use an I2C read to get seconds, minutes, hours, days, and date" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                <mxCell id="126" value="configure timer A1 CCR0 to prouduce an interupt in 500 ms" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
                     <mxGeometry x="315.5" y="190" width="159" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="134" value="" style="edgeStyle=none;html=1;" parent="1" source="129" target="133" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="129" value="convert RTC native data into a 64bit number of seconds relitive to a fixed point in the past" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                <mxCell id="129" value="toggle red led off, green led on, and configure buzzer pin to be an output from timer A2 CCR0" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
                     <mxGeometry x="300" y="320" width="189" height="90" as="geometry"/>
                 </mxCell>
-                <mxCell id="133" value="Return seconds count to caller" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
-                    <mxGeometry x="334.5" y="505" width="120" height="60" as="geometry"/>
+                <mxCell id="136" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="133" target="135">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="133" value="500 ms delay" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="334.5" y="482" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="135" value="toggle red led on, green led off, and configure buzzer pin to be an input" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="300.5" y="600" width="189" height="90" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

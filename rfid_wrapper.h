@@ -17,4 +17,8 @@
     
     void rfid_set_card_read_function(void (*read)(uint32_t));
 
+    void disable_reading(void);
+
+    void enable_reading(void);
+
 #endif /* RFID_DRIVER_H_ */

@@ -1,87 +1,145 @@
 <mxfile host="65bd71144e">
     <diagram id="uRFTJZ9asfGi-mWU3NWK" name="Page-1">
-        <mxGraphModel dx="937" dy="616" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1600" background="none" math="0" shadow="0">
+        <mxGraphModel dx="2498" dy="1642" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1600" background="none" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="138" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="8" target="137">
+                <mxCell id="164" value="" style="edgeStyle=none;html=1;" edge="1" parent="1" source="8" target="155">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="8" value="&lt;h1&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;store_to_memmory(UID)&lt;/font&gt;&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
-                    <mxGeometry x="690" y="40" width="320" height="80" as="geometry"/>
+                    <mxGeometry x="270" y="650" width="320" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="116" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="95" target="115">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="95" value="&lt;h1&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;get_card_from_mem(uid)&lt;/font&gt;&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
+                    <mxGeometry x="450" y="40" width="280" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="95" value="&lt;h1&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;read_from_memmory(UID)&lt;/font&gt;&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" parent="1" vertex="1">
-                    <mxGeometry x="140" y="40" width="280" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="120" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="115" target="119">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="115" value="Read data from flash memmory to ram" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="197.5" y="200" width="165" height="80" as="geometry"/>
-                </mxCell>
-                <mxCell id="129" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="119" target="128">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="119" value="Itterate through the stored &lt;br&gt;UID and data pairs" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="165" y="350" width="230" height="200" as="geometry"/>
-                </mxCell>
-                <mxCell id="126" value="" style="edgeStyle=none;html=1;fontSize=20;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="119" target="125">
+                <mxCell id="120" value="" style="edgeStyle=none;html=1;fontSize=20;" parent="1" target="119" edge="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="280" y="690" as="sourcePoint"/>
+                        <mxPoint x="590" y="120" as="sourcePoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="125" value="Return data paired with UID" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="220" y="650" width="120" height="60" as="geometry"/>
+                <mxCell id="129" value="" style="edgeStyle=none;html=1;fontSize=20;" parent="1" source="119" target="128" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="127" value="UID match" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" vertex="1" parent="1">
-                    <mxGeometry x="278" y="580" width="120" height="40" as="geometry"/>
+                <mxCell id="119" value="Innerate through the array of card data" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="475" y="190" width="230" height="200" as="geometry"/>
                 </mxCell>
-                <mxCell id="130" style="edgeStyle=none;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;fontSize=20;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="128" target="119">
+                <mxCell id="126" value="" style="edgeStyle=none;html=1;fontSize=20;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="119" target="125" edge="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="552.1666666666667" y="330.0000000000001" as="targetPoint"/>
+                        <mxPoint x="590" y="530" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="125" value="Return data paired with UID" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="530" y="490" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="127" value="UID match" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" parent="1" vertex="1">
+                    <mxGeometry x="588" y="420" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="130" style="edgeStyle=none;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;fontSize=20;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="128" target="119" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="862.1666666666667" y="170.0000000000001" as="targetPoint"/>
                         <Array as="points">
-                            <mxPoint x="553" y="350"/>
+                            <mxPoint x="863" y="190"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="134" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="128" target="133">
+                <mxCell id="134" value="" style="edgeStyle=none;html=1;fontSize=20;" parent="1" source="128" target="133" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="128" value="End of list" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="490" y="395" width="125" height="110" as="geometry"/>
+                <mxCell id="128" value="End of list" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="800" y="235" width="125" height="110" as="geometry"/>
                 </mxCell>
-                <mxCell id="132" value="No" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" vertex="1" parent="1">
-                    <mxGeometry x="395" y="310" width="50" height="40" as="geometry"/>
+                <mxCell id="132" value="No" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" parent="1" vertex="1">
+                    <mxGeometry x="705" y="150" width="50" height="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="133" value="Return card not present" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="492.5" y="650" width="120" height="60" as="geometry"/>
+                <mxCell id="133" value="Return blank card" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="802.5" y="490" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="136" value="Yes" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" vertex="1" parent="1">
-                    <mxGeometry x="555" y="550" width="60" height="40" as="geometry"/>
+                <mxCell id="136" value="Yes" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" parent="1" vertex="1">
+                    <mxGeometry x="865" y="390" width="60" height="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="140" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="137" target="139">
+                <mxCell id="144" value="" style="edgeStyle=none;html=1;fontSize=20;" parent="1" source="141" target="143" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="137" value="Read data from flash to ram" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="790" y="210" width="120" height="60" as="geometry"/>
+                <mxCell id="141" value="Erase flash memmory" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="510" y="1250" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="142" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="139" target="141">
+                <mxCell id="143" value="wright data array to flash" style="whiteSpace=wrap;html=1;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="510" y="1390" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="145" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="146" target="148">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="139" value="Append uid and data to data from flash" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="790" y="350" width="120" height="60" as="geometry"/>
+                <mxCell id="146" value="&lt;h1&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;init_flash_memory()&lt;/span&gt;&lt;/h1&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;whiteSpace=wrap;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="40" width="320" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="144" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="141" target="143">
+                <mxCell id="147" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="148" target="150">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="141" value="Erase flash memmory" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="790" y="490" width="120" height="60" as="geometry"/>
+                <mxCell id="148" value="set flash controller to work with higher clock speed" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="160" y="210" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="143" value="wright data in ram to flash" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
-                    <mxGeometry x="790" y="630" width="120" height="60" as="geometry"/>
+                <mxCell id="149" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="150" target="152">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="150" value="unprotect the flash memmory bank the card data is stored in" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="160" y="350" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="152" value="Read flash data in the flash into an array" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="160" y="490" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="154" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="155" target="161">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="155" value="Innerate through the array of card data" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="316" y="775" width="230" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="156" value="" style="edgeStyle=none;html=1;fontSize=20;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="155" target="157">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="431" y="1115" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="166" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="157" target="141">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="431" y="1210"/>
+                            <mxPoint x="570" y="1210"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="157" value="update card data in array" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="371" y="1075" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="158" value="UID match" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="429" y="1005" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="159" style="edgeStyle=none;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;fontSize=20;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="161" target="155">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="703.1666666666667" y="755.0000000000001" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="704" y="775"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="160" value="" style="edgeStyle=none;html=1;fontSize=20;" edge="1" parent="1" source="161" target="162">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="161" value="End of list" style="rhombus;whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="641" y="820" width="125" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="165" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="162" target="141">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="704" y="1210"/>
+                            <mxPoint x="570" y="1210"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="162" value="wright card data to array" style="whiteSpace=wrap;html=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="643.5" y="1075" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="163" value="Yes" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;" vertex="1" parent="1">
+                    <mxGeometry x="706" y="975" width="60" height="40" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

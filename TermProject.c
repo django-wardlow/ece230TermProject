@@ -10,35 +10,46 @@
 #include "flash.h"
 #include "rtc.h"
 #include "TermProject.h"
-#include "buzzer.h"
+#include "feedback.h"
+
+int display_card = 0;
+uint64_t current_time = 0;
+uint32_t card_uid = 0;
 
 // function called when card is read by rfid
 void card_read(uint32_t uid)
 {
+    positive_feedback();
+
+    card_uid = uid;
+    current_time = get_rtc_time();
+
+    display_card = 1;
+
+}
+
+void display_card_data(){
     lcd_clear();
 
     // buffer for prints
     char DataBuffer[16];
 
     // print uuid onto display
-    sprintf(DataBuffer, "uid: %d", uid);
+    sprintf(DataBuffer, "uid: %d", card_uid);
 
     lcd_puts(DataBuffer);
 
     lcd_SetLineNumber(SecondLine);
 
-    // gets time from RTC
-    uint64_t current_time = get_rtc_time();
-
     struct CardData card;
 
     // gets a blank card if it does not exist
-    card = get_card_from_mem(uid);
+    card = get_card_from_mem(card_uid);
 
     // init if card is blank
     if (card.uid == 0)
     {
-        card.uid = uid;
+        card.uid = card_uid;
         card.clock_in_time = 0;
         card.clocked_in = 0;
         card.accumulated_time = 0;
@@ -114,6 +125,7 @@ void card_read(uint32_t uid)
     lcd_puts(ReadyMessage);
 }
 
+
 void main(void)
 {
     WDT_A_holdTimer();
@@ -124,6 +136,8 @@ void main(void)
     configHFXT();
 
     configure_buzzer();
+
+    init_feedback();
 
     configure_rtc();
 
@@ -150,6 +164,18 @@ void main(void)
     {
 
         // PCM_gotoLPM0();
+
+        //if a card was read, display the info
+        if(display_card){
+            //prevent cards from being read while info is displayed
+            disable_reading();
+
+            display_card_data();
+
+            enable_reading();
+
+            display_card = 0;
+        }
 
         // clears the flash memmory when S2 is pressed, used for debugging
         if (GPIO_getInputPinValue(BUTTON_PORT, BUTTON_PIN) == GPIO_INPUT_PIN_LOW)
