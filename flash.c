@@ -3,7 +3,7 @@
  *
  *  Created on: Feb 8, 2024
  *      Author: Django Wardlow
- * referanced msp driverlib flash_program_memmory.c
+ * referenced msp driverlib flash_program_memmory.c
  */
 
 /* DriverLib Includes */

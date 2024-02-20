@@ -2,7 +2,7 @@
  * rfid_wrapper.h
  *
  *  Created on: Feb 16, 2024
- *      Author: user1
+ *      Author: Django Wardlow
  */
 
 #include "driverlib.h"

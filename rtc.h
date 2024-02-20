@@ -1,3 +1,8 @@
+/*
+* Reads the time from an RTC module over i2c
+* Author: Justin Zimmerman, Django Wardlow
+*/
+
 #include <msp.h>
 #include <stdio.h>
 #include <stdint.h>
